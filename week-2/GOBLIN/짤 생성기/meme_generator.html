@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>최신 유행 짤 생성기 🔥</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Noto Sans KR', sans-serif; }
+    input[type="range"] { accent-color: #ec4899; }
+    @keyframes pop { 0% { transform: scale(0.96); } 100% { transform: scale(1); } }
+    .pop { animation: pop 0.15s ease-out; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-rose-50 via-fuchsia-50 to-indigo-50 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useMemo, useCallback } = React;
+
+    /* ─── Design Components ───────────────────────────── */
+    function Button({ variant = "primary", size = "md", disabled, onClick, children, className = "" }) {
+      const variants = {
+        primary: "bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white hover:from-fuchsia-600 hover:to-pink-600 shadow-md shadow-pink-200",
+        secondary: "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50",
+      };
+      const sizes = { sm: "px-3 py-1.5 text-sm", md: "px-4 py-2 text-sm", lg: "px-6 py-3 text-base" };
+      return (
+        <button type="button" onClick={onClick} disabled={disabled}
+          className={`rounded-xl font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}>
+          {children}
+        </button>
+      );
+    }
+    function Field({ label, children }) {
+      return (
+        <label className="block">
+          <span className="block text-xs font-bold text-gray-500 mb-1">{label}</span>
+          {children}
+        </label>
+      );
+    }
+    function TextInput({ value, onChange, placeholder }) {
+      return (
+        <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-300 focus:border-fuchsia-400 transition" />
+      );
+    }
+    function Card({ children, className = "" }) {
+      return <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 ${className}`}>{children}</div>;
+    }
+    function Badge({ children, className = "" }) {
+      return <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${className}`}>{children}</span>;
+    }
+
+    /* ─── Canvas Helpers ──────────────────────────────── */
+    const W = 400, H = 400;
+
+    function wrapText(ctx, text, maxWidth) {
+      const lines = [];
+      for (const para of (text || "").split("\n")) {
+        if (!para) { lines.push(""); continue; }
+        let current = "";
+        for (const ch of para) {
+          const test = current + ch;
+          if (ctx.measureText(test).width > maxWidth && current) { lines.push(current); current = ch; }
+          else current = test;
+        }
+        if (current) lines.push(current);
+      }
+      return lines;
+    }
+
+    // Wave: draw each character with sine-offset y
+    function drawWaveLine(ctx, line, x, y, opts, time, lineIdx) {
+      const totalWidth = ctx.measureText(line).width;
+      const align = ctx.textAlign;
+      let cx = align === 'center' ? x - totalWidth / 2 : align === 'right' ? x - totalWidth : x;
+      const savedAlign = ctx.textAlign;
+      ctx.textAlign = 'left';
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        const wy = y + Math.sin(time * 4 + i * 0.65 + lineIdx * 1.5) * 9;
+        if (opts.stroke) {
+          ctx.lineWidth = opts.strokeWidth || 6;
+          ctx.strokeStyle = opts.strokeColor || "#000";
+          ctx.strokeText(ch, cx, wy);
+        }
+        ctx.fillText(ch, cx, wy);
+        cx += ctx.measureText(ch).width;
+      }
+      ctx.textAlign = savedAlign;
+    }
+
+    // Central text draw — reads ctx.__animType and ctx.__time for animation
+    function drawWrapped(ctx, text, x, y, maxWidth, lineHeight, opts = {}) {
+      const animType = ctx.__animType || 'none';
+      const time = ctx.__time || 0;
+      const lines = wrapText(ctx, text, maxWidth);
+      const startY = opts.vAlign === "bottom" ? y - (lines.length - 1) * lineHeight : y;
+
+      lines.forEach((line, lineIdx) => {
+        const ly = startY + lineIdx * lineHeight;
+
+        if (animType === 'wave' && line) {
+          drawWaveLine(ctx, line, x, ly, opts, time, lineIdx);
+
+        } else if (animType === 'typing') {
+          let charsBefore = 0;
+          for (let li = 0; li < lineIdx; li++) charsBefore += lines[li].length;
+          const totalLen = lines.reduce((s, l) => s + l.length, 0);
+          const cycle = Math.floor(time * 7) % (totalLen + 6);
+          const visibleInLine = Math.max(0, Math.min(line.length, cycle - charsBefore));
+          const showCursor = (cycle - charsBefore) >= 0 && (cycle - charsBefore) <= line.length;
+          const displayLine = line.slice(0, visibleInLine) + (showCursor ? '▌' : '');
+          if (opts.stroke) {
+            ctx.lineWidth = opts.strokeWidth || 6;
+            ctx.strokeStyle = opts.strokeColor || "#000";
+            ctx.strokeText(displayLine, x, ly);
+          }
+          ctx.fillText(displayLine, x, ly);
+
+        } else {
+          if (opts.stroke) {
+            ctx.lineWidth = opts.strokeWidth || 6;
+            ctx.strokeStyle = opts.strokeColor || "#000";
+            ctx.strokeText(line, x, ly);
+          }
+          ctx.fillText(line, x, ly);
+        }
+      });
+      return lines.length;
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
+      ctx.beginPath();
+      ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+    function impactFont(size) { return `900 ${size}px 'Black Han Sans', 'Noto Sans KR', sans-serif`; }
+    function boldFont(size) { return `900 ${size}px 'Noto Sans KR', sans-serif`; }
+
+    /* ─── Templates ───────────────────────────────────── */
+    const TEMPLATES = [
+      {
+        id: "ask", name: "나는 OO인데 OO해도 돼?", emoji: "🥺",
+        schema: [
+          { key: "top", label: "윗줄", placeholder: "나는 김치찌개인데", default: "나는 신입인데" },
+          { key: "bottom", label: "아랫줄", placeholder: "퇴근해도 돼?", default: "칼퇴해도 돼?" },
+        ],
+        draw(ctx, v, s) {
+          ctx.fillStyle = s.bg; ctx.fillRect(0, 0, W, H);
+          ctx.textAlign = "center"; ctx.fillStyle = s.text;
+          ctx.font = boldFont(s.fontSize);
+          drawWrapped(ctx, v.top, W / 2, H * 0.32, W - 60, s.fontSize * 1.25);
+          ctx.font = boldFont(s.fontSize + 8);
+          drawWrapped(ctx, v.bottom, W / 2, H * 0.62, W - 60, (s.fontSize + 8) * 1.25);
+        },
+      },
+      {
+        id: "go", name: "OO 드가자~", emoji: "🚀",
+        schema: [{ key: "word", label: "텍스트", placeholder: "주식", default: "주식" }],
+        draw(ctx, v, s) {
+          const grad = ctx.createLinearGradient(0, 0, W, H);
+          grad.addColorStop(0, s.bg); grad.addColorStop(1, "#111827");
+          ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+          ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(-0.12);
+          ctx.fillStyle = "#fde047";
+          roundRect(ctx, -W / 2 - 20, -55, W + 40, 110, 0); ctx.fill();
+          ctx.restore();
+          ctx.textAlign = "center"; ctx.font = impactFont(s.fontSize + 20);
+          ctx.fillStyle = s.text;
+          ctx.save();
+          ctx.translate(W / 2, H / 2 + (s.fontSize + 20) * 0.12); ctx.rotate(-0.12);
+          drawWrapped(ctx, `${v.word} 드가자~`, 0, 18, W - 40, (s.fontSize + 20) * 1.2, {
+            stroke: true, strokeColor: "#000", strokeWidth: 8,
+          });
+          ctx.restore();
+        },
+      },
+      {
+        id: "boyfriend", name: "이게 맞나? (3박스)", emoji: "👀",
+        schema: [
+          { key: "a", label: "왼쪽", placeholder: "나", default: "나" },
+          { key: "b", label: "가운데", placeholder: "마감", default: "마감" },
+          { key: "c", label: "오른쪽", placeholder: "유튜브", default: "유튜브" },
+        ],
+        draw(ctx, v, s) {
+          ctx.fillStyle = s.bg; ctx.fillRect(0, 0, W, H);
+          const faces = ["😍", "😐", "💃"];
+          const labels = [v.a, v.b, v.c];
+          const colors = ["#fca5a5", "#fcd34d", "#86efac"];
+          const bw = 120, gap = 14, total = bw * 3 + gap * 2, startX = (W - total) / 2;
+          for (let i = 0; i < 3; i++) {
+            const x = startX + i * (bw + gap);
+            ctx.fillStyle = colors[i]; roundRect(ctx, x, 80, bw, 200, 18); ctx.fill();
+            ctx.textAlign = "center"; ctx.font = "70px serif"; ctx.fillText(faces[i], x + bw / 2, 180);
+            ctx.font = boldFont(Math.min(s.fontSize, 24)); ctx.fillStyle = "#1f2937";
+            drawWrapped(ctx, labels[i], x + bw / 2, 235, bw - 12, 24);
+          }
+          ctx.textAlign = "center"; ctx.font = impactFont(s.fontSize + 6);
+          ctx.fillStyle = s.text; ctx.lineWidth = 6; ctx.strokeStyle = "#fff";
+          ctx.strokeText("이게 맞나?", W / 2, 340); ctx.fillText("이게 맞나?", W / 2, 340);
+        },
+      },
+      {
+        id: "vs", name: "OO할 때 vs OO할 때", emoji: "⚔️",
+        schema: [
+          { key: "left", label: "왼쪽 상황", placeholder: "월급 들어올 때", default: "월급 들어올 때" },
+          { key: "right", label: "오른쪽 상황", placeholder: "카드값 빠질 때", default: "카드값 빠질 때" },
+        ],
+        draw(ctx, v, s) {
+          ctx.fillStyle = s.bg; ctx.fillRect(0, 0, W / 2, H);
+          ctx.fillStyle = s.bg2 || "#1e293b"; ctx.fillRect(W / 2, 0, W / 2, H);
+          ctx.fillStyle = "#fff"; ctx.fillRect(W / 2 - 3, 0, 6, H);
+          ctx.beginPath(); ctx.arc(W / 2, H / 2, 36, 0, Math.PI * 2);
+          ctx.fillStyle = "#ec4899"; ctx.fill();
+          ctx.lineWidth = 4; ctx.strokeStyle = "#fff"; ctx.stroke();
+          ctx.textAlign = "center"; ctx.fillStyle = "#fff";
+          ctx.font = impactFont(26); ctx.fillText("VS", W / 2, H / 2 + 9);
+          ctx.font = boldFont(s.fontSize); ctx.fillStyle = s.text;
+          drawWrapped(ctx, v.left, W / 4, H * 0.78, W / 2 - 30, s.fontSize * 1.2);
+          ctx.fillStyle = "#fff";
+          drawWrapped(ctx, v.right, (W * 3) / 4, H * 0.78, W / 2 - 30, s.fontSize * 1.2);
+        },
+      },
+      {
+        id: "drake", name: "참을 수 없는 OO (드레이크)", emoji: "🙅",
+        schema: [
+          { key: "no", label: "싫어요 (위)", placeholder: "아침에 일어나기", default: "야근하기" },
+          { key: "yes", label: "좋아요 (아래)", placeholder: "이불 속에 더 있기", default: "칼퇴하기" },
+        ],
+        draw(ctx, v, s) {
+          ctx.fillStyle = "#fee2e2"; ctx.fillRect(0, 0, W, H / 2);
+          ctx.fillStyle = "#dcfce7"; ctx.fillRect(0, H / 2, W, H / 2);
+          ctx.font = "60px serif"; ctx.textAlign = "center";
+          ctx.fillText("🙅‍♂️", W * 0.18, H * 0.28); ctx.fillText("🙆‍♂️", W * 0.18, H * 0.78);
+          ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+          ctx.textAlign = "left"; ctx.font = boldFont(s.fontSize); ctx.fillStyle = s.text;
+          drawWrapped(ctx, v.no, W * 0.36, H * 0.22, W * 0.58, s.fontSize * 1.25);
+          drawWrapped(ctx, v.yes, W * 0.36, H * 0.72, W * 0.58, s.fontSize * 1.25);
+        },
+      },
+      {
+        id: "mbti", name: "당신은 OO형", emoji: "🧪",
+        schema: [
+          { key: "type", label: "유형명", placeholder: "ENFP", default: "갓생러" },
+          { key: "desc", label: "설명", placeholder: "에너지가 넘치는 인싸", default: "오늘도 열심히 사는 당신" },
+          { key: "emoji", label: "이모지", placeholder: "🔥", default: "🔥" },
+        ],
+        draw(ctx, v, s) {
+          const grad = ctx.createLinearGradient(0, 0, 0, H);
+          grad.addColorStop(0, s.bg); grad.addColorStop(1, s.bg2 || "#fbcfe8");
+          ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = "rgba(255,255,255,0.65)";
+          roundRect(ctx, 30, 50, W - 60, H - 100, 28); ctx.fill();
+          ctx.textAlign = "center"; ctx.font = "90px serif"; ctx.fillText(v.emoji || "🔥", W / 2, 175);
+          ctx.font = impactFont(s.fontSize + 12); ctx.fillStyle = s.text;
+          drawWrapped(ctx, `${v.type}형`, W / 2, 250, W - 100, (s.fontSize + 12) * 1.2);
+          ctx.font = boldFont(Math.min(s.fontSize - 4, 20)); ctx.fillStyle = "#475569";
+          drawWrapped(ctx, v.desc, W / 2, 300, W - 110, 26);
+        },
+      },
+      {
+        id: "receipt", name: "OO 월급 탈출 (영수증)", emoji: "🧾",
+        schema: [
+          { key: "title", label: "상호명", placeholder: "직장인 마트", default: "직장인 영수증" },
+          { key: "i1", label: "항목1 (이름:금액)", placeholder: "월세:600000", default: "월세:600000" },
+          { key: "i2", label: "항목2", placeholder: "카드값:450000", default: "카드값:450000" },
+          { key: "i3", label: "항목3", placeholder: "통신비:80000", default: "통신비:80000" },
+          { key: "i4", label: "항목4", placeholder: "남은돈:1000", default: "남은돈:1000" },
+        ],
+        draw(ctx, v, s) {
+          ctx.fillStyle = s.bg; ctx.fillRect(0, 0, W, H);
+          const px = 60, pw = W - 120;
+          ctx.fillStyle = "#fff"; ctx.fillRect(px, 20, pw, H - 40);
+          ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(px, H - 40);
+          const teeth = 12, tw = pw / teeth;
+          for (let i = 0; i < teeth; i++) {
+            ctx.lineTo(px + i * tw + tw / 2, H - 28); ctx.lineTo(px + (i + 1) * tw, H - 40);
+          }
+          ctx.lineTo(px, H - 40); ctx.closePath(); ctx.fill();
+          ctx.textAlign = "center"; ctx.fillStyle = "#111";
+          ctx.font = boldFont(22); ctx.fillText(v.title || "영수증", W / 2, 60);
+          ctx.font = "400 13px monospace"; ctx.fillText("- - - - - - - - - - - - - - - -", W / 2, 82);
+          const items = [v.i1, v.i2, v.i3, v.i4].filter(Boolean);
+          ctx.font = boldFont(Math.min(s.fontSize - 2, 18));
+          let yy = 120, totalAmt = 0;
+          items.forEach(it => {
+            const [name, amt] = (it || "").split(":");
+            ctx.textAlign = "left"; ctx.fillStyle = "#111";
+            ctx.fillText((name || "").trim(), px + 18, yy);
+            ctx.textAlign = "right";
+            const num = parseInt((amt || "").replace(/[^0-9-]/g, ""), 10);
+            if (!isNaN(num)) totalAmt += num;
+            ctx.fillText(amt ? `${amt.trim()}원` : "", px + pw - 18, yy);
+            yy += 36;
+          });
+          ctx.textAlign = "center"; ctx.font = "400 13px monospace";
+          ctx.fillText("- - - - - - - - - - - - - - - -", W / 2, yy); yy += 34;
+          ctx.font = boldFont(20); ctx.textAlign = "left"; ctx.fillStyle = s.text;
+          ctx.fillText("합계", px + 18, yy); ctx.textAlign = "right";
+          ctx.fillText(`${totalAmt.toLocaleString()}원`, px + pw - 18, yy);
+        },
+      },
+      {
+        id: "classic", name: "자유 텍스트 짤", emoji: "💬",
+        schema: [
+          { key: "top", label: "위쪽 텍스트", placeholder: "월요일 아침", default: "퇴근 5분 전" },
+          { key: "bottom", label: "아래쪽 텍스트", placeholder: "현실 부정", default: "갑자기 잡힌 회의" },
+        ],
+        draw(ctx, v, s) {
+          ctx.fillStyle = s.bg; ctx.fillRect(0, 0, W, H);
+          ctx.textAlign = "center"; ctx.font = "120px serif"; ctx.globalAlpha = 0.35;
+          ctx.fillText("🖼️", W / 2, H / 2 + 40); ctx.globalAlpha = 1;
+          ctx.font = impactFont(s.fontSize + 6); ctx.fillStyle = s.text;
+          drawWrapped(ctx, v.top, W / 2, 50, W - 30, (s.fontSize + 6) * 1.1, { stroke: true, strokeColor: "#000", strokeWidth: 7 });
+          drawWrapped(ctx, v.bottom, W / 2, H - 30, W - 30, (s.fontSize + 6) * 1.1, { stroke: true, strokeColor: "#000", strokeWidth: 7, vAlign: "bottom" });
+        },
+      },
+    ];
+
+    /* ─── Animation Options ───────────────────────────── */
+    const ANIM_OPTIONS = [
+      { value: 'none',    label: '없음',     emoji: '⏹' },
+      { value: 'shake',   label: '흔들기',   emoji: '📳' },
+      { value: 'bounce',  label: '바운스',   emoji: '⬆️' },
+      { value: 'wobble',  label: '흔들흔들', emoji: '🌀' },
+      { value: 'zoom',    label: '줌인아웃', emoji: '🔍' },
+      { value: 'wave',    label: '웨이브',   emoji: '🌊' },
+      { value: 'typing',  label: '타이핑',   emoji: '⌨️' },
+      { value: 'glitch',  label: '글리치',   emoji: '⚡' },
+      { value: 'rainbow', label: '무지개',   emoji: '🌈' },
+    ];
+
+    /* ─── Static draw ─────────────────────────────────── */
+    function drawMeme(ctx, template, inputs, style) {
+      ctx.clearRect(0, 0, W, H);
+      ctx.textBaseline = "alphabetic";
+      ctx.__animType = 'none';
+      ctx.__time = 0;
+      template.draw(ctx, inputs, style);
+    }
+
+    /* ─── Animated draw ───────────────────────────────── */
+    function drawAnimated(ctx, template, inputs, style, time, animType) {
+      ctx.clearRect(0, 0, W, H);
+      ctx.textBaseline = "alphabetic";
+      ctx.__animType = animType;
+      ctx.__time = time;
+
+      if (animType === 'shake') {
+        ctx.save();
+        ctx.translate(
+          Math.sin(time * 13) * 4 + Math.sin(time * 7.3) * 2,
+          Math.cos(time * 11) * 3
+        );
+        template.draw(ctx, inputs, style);
+        ctx.restore();
+
+      } else if (animType === 'bounce') {
+        ctx.save();
+        ctx.translate(0, -Math.abs(Math.sin(time * Math.PI * 1.8)) * 15);
+        template.draw(ctx, inputs, style);
+        ctx.restore();
+
+      } else if (animType === 'wobble') {
+        ctx.save();
+        ctx.translate(W / 2, H / 2);
+        ctx.rotate(Math.sin(time * 2.5) * 0.04);
+        ctx.translate(-W / 2, -H / 2);
+        template.draw(ctx, inputs, style);
+        ctx.restore();
+
+      } else if (animType === 'zoom') {
+        ctx.save();
+        const sc = 1 + Math.sin(time * 2.2) * 0.03;
+        ctx.translate(W / 2, H / 2);
+        ctx.scale(sc, sc);
+        ctx.translate(-W / 2, -H / 2);
+        template.draw(ctx, inputs, style);
+        ctx.restore();
+
+      } else if (animType === 'rainbow') {
+        const hue = (time * 60) % 360;
+        template.draw(ctx, inputs, { ...style, text: `hsl(${hue}, 90%, 55%)` });
+
+      } else if (animType === 'glitch') {
+        template.draw(ctx, inputs, style);
+        const lineCount = 2 + Math.floor(Math.abs(Math.sin(time * 8)) * 5);
+        for (let i = 0; i < lineCount; i++) {
+          const gy = Math.floor(Math.random() * (H - 8));
+          const gh = Math.floor(Math.random() * 6 + 2);
+          try {
+            const imageData = ctx.getImageData(0, gy, W, gh);
+            ctx.putImageData(imageData, Math.floor(Math.sin(time * 20 + i) * 10), gy);
+          } catch (e) {}
+        }
+        if (Math.random() > 0.5) {
+          ctx.fillStyle = `rgba(${Math.random() > 0.5 ? 255 : 0},0,${Math.random() > 0.5 ? 200 : 0},0.05)`;
+          ctx.fillRect(0, 0, W, H);
+        }
+
+      } else {
+        // wave / typing: handled inside drawWrapped via ctx.__animType
+        template.draw(ctx, inputs, style);
+      }
+    }
+
+    /* ─── Default Styles ──────────────────────────────── */
+    const DEFAULT_STYLES = {
+      ask:       { bg: "#fde68a", bg2: "#fbbf24", text: "#1f2937", fontSize: 30 },
+      go:        { bg: "#7c3aed", bg2: "#111827", text: "#7c3aed", fontSize: 26 },
+      boyfriend: { bg: "#e0f2fe", text: "#0ea5e9", fontSize: 22 },
+      vs:        { bg: "#fbcfe8", bg2: "#1e293b", text: "#9d174d", fontSize: 24 },
+      drake:     { bg: "#f1f5f9", text: "#1f2937", fontSize: 24 },
+      mbti:      { bg: "#c7d2fe", bg2: "#fbcfe8", text: "#4338ca", fontSize: 26 },
+      receipt:   { bg: "#cbd5e1", bg2: "#94a3b8", text: "#dc2626", fontSize: 20 },
+      classic:   { bg: "#ffffff", text: "#ffffff", fontSize: 30 },
+    };
+
+    /* ─── TemplateCard ────────────────────────────────── */
+    function TemplateCard({ template, selected, onSelect }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        const cvs = ref.current; if (!cvs) return;
+        const inputs = {};
+        template.schema.forEach(f => (inputs[f.key] = f.default));
+        const off = document.createElement("canvas");
+        off.width = W; off.height = H;
+        drawMeme(off.getContext("2d"), template, inputs, DEFAULT_STYLES[template.id]);
+        const ctx = cvs.getContext("2d");
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.drawImage(off, 0, 0, W, H, 0, 0, cvs.width, cvs.height);
+      }, [template]);
+
+      return (
+        <button type="button" onClick={() => onSelect(template.id)}
+          className={`text-left rounded-2xl p-2 border-2 transition-all bg-white hover:shadow-md ${selected ? "border-fuchsia-500 shadow-md ring-2 ring-fuchsia-200" : "border-transparent"}`}>
+          <div className="rounded-xl overflow-hidden bg-gray-100">
+            <canvas ref={ref} width={80} height={60} className="w-full h-auto" />
+          </div>
+          <div className="mt-1.5 flex items-center gap-1">
+            <span className="text-base leading-none">{template.emoji}</span>
+            <span className="text-[11px] font-bold text-gray-700 leading-tight line-clamp-2">{template.name}</span>
+          </div>
+        </button>
+      );
+    }
+
+    function ColorSwatch({ value, onChange, label }) {
+      const safeValue = /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#ffffff";
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[10px] font-bold text-gray-500">{label}</span>
+          <input type="color" value={safeValue} onChange={e => onChange(e.target.value)}
+            className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer bg-white p-0.5" />
+        </div>
+      );
+    }
+
+    /* ─── App ─────────────────────────────────────────── */
+    function App() {
+      const [selectedId, setSelectedId] = useState(TEMPLATES[0].id);
+      const template = useMemo(() => TEMPLATES.find(t => t.id === selectedId), [selectedId]);
+
+      const [inputs, setInputs] = useState({});
+      const [style, setStyle] = useState(DEFAULT_STYLES[TEMPLATES[0].id]);
+      const [animType, setAnimType] = useState('none');
+      const [fontReady, setFontReady] = useState(false);
+      const canvasRef = useRef(null);
+
+      // Stable refs so RAF loop always reads latest values without restarting
+      const inputsRef = useRef(inputs);
+      const styleRef = useRef(style);
+      const templateRef = useRef(template);
+      useEffect(() => { inputsRef.current = inputs; }, [inputs]);
+      useEffect(() => { styleRef.current = style; }, [style]);
+      useEffect(() => { templateRef.current = template; }, [template]);
+
+      useEffect(() => {
+        if (document.fonts?.ready) document.fonts.ready.then(() => setFontReady(true));
+        else setFontReady(true);
+      }, []);
+
+      // Reset inputs/style on template change
+      useEffect(() => {
+        const initial = {};
+        template.schema.forEach(f => (initial[f.key] = f.default));
+        setInputs(initial);
+        setStyle({ ...DEFAULT_STYLES[template.id] });
+      }, [template]);
+
+      // Static redraw — only when not animating
+      useEffect(() => {
+        if (animType !== 'none') return;
+        const cvs = canvasRef.current;
+        if (!cvs || Object.keys(inputs).length === 0 || !fontReady) return;
+        drawMeme(cvs.getContext('2d'), template, inputs, style);
+      }, [inputs, style, template, fontReady, animType]);
+
+      // RAF animation loop — restarts when animType or template changes
+      useEffect(() => {
+        if (!fontReady || animType === 'none') return;
+        let rafId;
+        let startTime = null;
+        function loop(ts) {
+          if (!startTime) startTime = ts;
+          const time = (ts - startTime) / 1000;
+          const cvs = canvasRef.current;
+          const inp = inputsRef.current;
+          if (cvs && Object.keys(inp).length > 0) {
+            drawAnimated(cvs.getContext('2d'), templateRef.current, inp, styleRef.current, time, animType);
+          }
+          rafId = requestAnimationFrame(loop);
+        }
+        rafId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(rafId);
+      }, [animType, selectedId, fontReady]);
+
+      const updateInput = useCallback((key, val) => setInputs(prev => ({ ...prev, [key]: val })), []);
+      const updateStyle = useCallback((key, val) => setStyle(prev => ({ ...prev, [key]: val })), []);
+
+      const handleDownload = useCallback(() => {
+        const cvs = canvasRef.current; if (!cvs) return;
+        cvs.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = `짤_${template.id}_${Date.now()}.png`;
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a); URL.revokeObjectURL(url);
+        }, "image/png");
+      }, [template]);
+
+      const usesBg2 = ["vs", "mbti"].includes(template.id);
+
+      return (
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <header className="text-center mb-6">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
+              <span className="bg-gradient-to-r from-fuchsia-500 via-pink-500 to-orange-400 bg-clip-text text-transparent">
+                최신 유행 짤 생성기 🔥
+              </span>
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">템플릿을 고르고 텍스트만 바꾸면 끝! 바로 PNG로 저장하세요.</p>
+            {!fontReady && <p className="text-[11px] text-amber-500 mt-1">폰트 불러오는 중...</p>}
+          </header>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Template selector */}
+            <Card className="lg:col-span-5 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <h2 className="font-black text-gray-800">템플릿 선택</h2>
+                <Badge className="bg-fuchsia-100 text-fuchsia-600">{TEMPLATES.length}종</Badge>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {TEMPLATES.map(t => (
+                  <TemplateCard key={t.id} template={t} selected={t.id === selectedId} onSelect={setSelectedId} />
+                ))}
+              </div>
+            </Card>
+
+            {/* Editor + Preview */}
+            <div className="lg:col-span-7 space-y-5">
+              {/* Preview */}
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-black text-gray-800">{template.emoji} 미리보기</h2>
+                    {animType !== 'none' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-600 text-[10px] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse inline-block"></span>
+                        애니메이션 중
+                      </span>
+                    )}
+                  </div>
+                  <Button onClick={handleDownload} size="md">⬇️ 다운로드 (PNG)</Button>
+                </div>
+                <div className="flex justify-center">
+                  <div className="pop rounded-2xl overflow-hidden shadow-lg border border-gray-100">
+                    <canvas ref={canvasRef} width={W} height={H}
+                      className="block w-[320px] h-[320px] sm:w-[400px] sm:h-[400px]" />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Text Inputs */}
+              <Card className="p-4">
+                <h2 className="font-black text-gray-800 mb-3">✏️ 텍스트 입력</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {template.schema.map(f => (
+                    <Field key={f.key} label={f.label}>
+                      <TextInput value={inputs[f.key] || ""} onChange={val => updateInput(f.key, val)} placeholder={f.placeholder} />
+                    </Field>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Style + Animation */}
+              <Card className="p-4">
+                <h2 className="font-black text-gray-800 mb-4">🎨 스타일 꾸미기</h2>
+
+                {/* Animation selector */}
+                <div className="mb-5">
+                  <span className="block text-xs font-bold text-gray-500 mb-2">✨ 텍스트 애니메이션</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ANIM_OPTIONS.map(a => (
+                      <button key={a.value} type="button" onClick={() => setAnimType(a.value)}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          animType === a.value
+                            ? 'bg-fuchsia-500 text-white border-fuchsia-500 shadow-sm'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-fuchsia-300'
+                        }`}>
+                        {a.emoji} {a.label}
+                      </button>
+                    ))}
+                  </div>
+                  {animType !== 'none' && (
+                    <p className="text-[10px] text-amber-500 mt-1.5">
+                      ⚠️ 다운로드 시 현재 프레임이 PNG로 저장됩니다.
+                    </p>
+                  )}
+                </div>
+
+                {/* Color & font size controls */}
+                <div className="flex flex-wrap items-end gap-4">
+                  <ColorSwatch label="배경색" value={style.bg} onChange={v => updateStyle("bg", v)} />
+                  {usesBg2 && (
+                    <ColorSwatch label="보조 배경" value={style.bg2 || "#1e293b"} onChange={v => updateStyle("bg2", v)} />
+                  )}
+                  <ColorSwatch label="글자색" value={style.text} onChange={v => updateStyle("text", v)} />
+                  <div className="flex-1 min-w-[160px]">
+                    <span className="block text-[10px] font-bold text-gray-500 mb-1">
+                      글자 크기 ({style.fontSize}px)
+                    </span>
+                    <input type="range" min="14" max="48" value={style.fontSize}
+                      onChange={e => updateStyle("fontSize", parseInt(e.target.value, 10))} className="w-full" />
+                  </div>
+                  <Button variant="secondary" size="sm"
+                    onClick={() => { setStyle({ ...DEFAULT_STYLES[template.id] }); setAnimType('none'); }}>
+                    🔄 초기화
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </div>
+
+          <footer className="text-center text-xs text-gray-400 mt-8">
+            Canvas + React + requestAnimationFrame 으로 제작
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

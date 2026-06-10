@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나사 오늘의 사진 포토북</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --space-bg: #0a0a1a;
+      --accent: #f5c542;
+    }
+    html, body { background-color: var(--space-bg); }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      color: #e8e8f0;
+      margin: 0;
+    }
+    .font-serif-display { font-family: 'Playfair Display', serif; }
+
+    /* Animated starfield background */
+    .starfield {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 20% 10%, rgba(80,60,160,0.25), transparent 55%),
+        radial-gradient(ellipse at 85% 80%, rgba(30,80,160,0.2), transparent 50%),
+        var(--space-bg);
+    }
+    .stars, .stars2, .stars3 {
+      position: absolute;
+      inset: 0;
+      background-repeat: repeat;
+    }
+    .stars {
+      background-image:
+        radial-gradient(1px 1px at 20px 30px, #ffffff, transparent),
+        radial-gradient(1px 1px at 120px 80px, #ffffff, transparent),
+        radial-gradient(1px 1px at 200px 160px, #c9d8ff, transparent),
+        radial-gradient(2px 2px at 300px 50px, #ffffff, transparent),
+        radial-gradient(1px 1px at 380px 200px, #fff7d6, transparent);
+      background-size: 400px 400px;
+      animation: drift 200s linear infinite;
+      opacity: 0.7;
+    }
+    .stars2 {
+      background-image:
+        radial-gradient(1px 1px at 50px 120px, #ffffff, transparent),
+        radial-gradient(1px 1px at 180px 40px, #aab9ff, transparent),
+        radial-gradient(1px 1px at 260px 220px, #ffffff, transparent),
+        radial-gradient(1px 1px at 340px 100px, #ffffff, transparent);
+      background-size: 350px 350px;
+      animation: twinkle 6s ease-in-out infinite alternate, drift 320s linear infinite;
+      opacity: 0.5;
+    }
+    @keyframes drift { from { background-position: 0 0; } to { background-position: 400px 800px; } }
+    @keyframes twinkle { from { opacity: 0.25; } to { opacity: 0.7; } }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.9s linear infinite; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in-up { animation: fadeInUp 0.6s ease forwards; opacity: 0; }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-in { animation: modalIn 0.25s ease forwards; }
+    @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+    .overlay-in { animation: overlayIn 0.2s ease forwards; }
+
+    /* Custom scrollbar for modal */
+    .nice-scroll::-webkit-scrollbar { width: 8px; }
+    .nice-scroll::-webkit-scrollbar-track { background: transparent; }
+    .nice-scroll::-webkit-scrollbar-thumb { background: rgba(245,197,66,0.4); border-radius: 8px; }
+    .nice-scroll::-webkit-scrollbar-thumb:hover { background: rgba(245,197,66,0.7); }
+
+    /* 3-column grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+    @media (max-width: 768px) {
+      .photo-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .photo-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ========================================
+    // React Hooks
+    // ========================================
+    const { useState, useEffect, useCallback, useMemo } = React;
+
+    // ========================================
+    // Config
+    // ========================================
+    const NASA_API_KEY = "GF0fDqYa8EEVb55ByPc1qEzcBwItQJP3V952C6s7";
+    const APOD_ENDPOINT = "https://api.nasa.gov/planetary/apod";
+
+    function getTodayStr() {
+      const d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+    function get30DaysAgoStr() {
+      const d = new Date();
+      d.setDate(d.getDate() - 29);
+      return d.toISOString().slice(0, 10);
+    }
+
+    // ========================================
+    // Utilities
+    // ========================================
+    function formatDate(dateStr) {
+      try {
+        const d = new Date(dateStr + "T00:00:00");
+        return d.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+      } catch (e) {
+        return dateStr;
+      }
+    }
+
+    // Extract a YouTube thumbnail from a video URL when possible
+    function getYouTubeId(url) {
+      if (!url) return null;
+      const match = url.match(/(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+      return match ? match[1] : null;
+    }
+
+    function getVideoThumb(item) {
+      if (item.thumbnail_url) return item.thumbnail_url;
+      const id = getYouTubeId(item.url);
+      if (id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+      return null;
+    }
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function Spinner({ className = "" }) {
+      return (
+        <div
+          className={`spinner inline-block rounded-full border-4 border-yellow-400/20 border-t-yellow-400 ${className}`}
+          role="status"
+          aria-label="로딩 중"
+        />
+      );
+    }
+
+    function Badge({ children, className = "" }) {
+      return (
+        <span className={`inline-block rounded-full bg-yellow-400/15 text-yellow-300 text-xs font-medium px-2.5 py-1 backdrop-blur-sm ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    function Button({ children, onClick, variant = "primary", className = "", ...rest }) {
+      const variants = {
+        primary: "bg-yellow-400 text-black hover:bg-yellow-300",
+        ghost: "bg-white/5 text-white hover:bg-white/15 border border-white/10",
+      };
+      return (
+        <button
+          onClick={onClick}
+          className={`rounded-lg px-5 py-2.5 font-medium transition-all duration-200 ${variants[variant]} ${className}`}
+          {...rest}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function PlayOverlay() {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/15 transition-colors">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-yellow-400/90 text-black shadow-lg shadow-yellow-400/30 transition-transform duration-300 group-hover:scale-110">
+            <svg viewBox="0 0 24 24" className="h-7 w-7 ml-1" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🧩 Header
+    // ========================================
+    function Header({ count }) {
+      return (
+        <header className="relative z-10 text-center pt-16 pb-10 px-4">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="h-px w-10 bg-gradient-to-r from-transparent to-yellow-400/60" />
+            <span className="text-yellow-400 tracking-[0.35em] text-xs sm:text-sm font-medium uppercase">
+              NASA Astronomy Picture of the Day
+            </span>
+            <span className="h-px w-10 bg-gradient-to-l from-transparent to-yellow-400/60" />
+          </div>
+          <h1 className="font-serif-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight">
+            <span className="bg-gradient-to-r from-yellow-200 via-yellow-400 to-amber-500 bg-clip-text text-transparent">
+              나사 오늘의 사진 포토북
+            </span>
+          </h1>
+          <p className="mt-4 text-sm sm:text-base text-white/50 max-w-xl mx-auto leading-relaxed">
+            지난 30일간 우주가 들려준 이야기. 매일 한 장의 천문 사진으로 떠나는 여행입니다.
+          </p>
+          {count > 0 && (
+            <div className="mt-5">
+              <Badge>{formatDate(get30DaysAgoStr())} – {formatDate(getTodayStr())} · {count}장</Badge>
+            </div>
+          )}
+        </header>
+      );
+    }
+
+    // ========================================
+    // 🧩 Photo Card
+    // ========================================
+    function PhotoCard({ item, index, onOpen }) {
+      const isVideo = item.media_type === "video";
+      const thumb = isVideo ? getVideoThumb(item) : (item.url || item.hdurl);
+
+      return (
+        <button
+          onClick={() => onOpen(item)}
+          style={{ animationDelay: `${Math.min(index * 60, 800)}ms` }}
+          className="group fade-in-up w-full text-left rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10 shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:border-yellow-400/40 hover:shadow-[0_0_40px_-8px_rgba(245,197,66,0.45)] focus:outline-none focus:ring-2 focus:ring-yellow-400/60"
+          aria-label={`${item.title} 자세히 보기`}
+        >
+          <div className="relative overflow-hidden bg-black/40" style={{height: "220px"}}>
+            {thumb ? (
+              <img
+                src={thumb}
+                alt={item.title}
+                loading="lazy"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white/30 text-sm">
+                미리보기 없음
+              </div>
+            )}
+            {isVideo && <PlayOverlay />}
+            <div className="absolute top-3 left-3 flex gap-2">
+              {isVideo && <Badge>영상</Badge>}
+            </div>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+          </div>
+
+          <div className="p-5">
+            <p className="text-yellow-400/80 text-xs font-medium mb-1.5">{formatDate(item.date)}</p>
+            <h3 className="font-serif-display text-lg sm:text-xl font-semibold leading-snug text-white group-hover:text-yellow-200 transition-colors line-clamp-2">
+              {item.title}
+            </h3>
+            {item.copyright && (
+              <p className="mt-2 text-xs text-white/40 truncate">© {item.copyright.trim()}</p>
+            )}
+          </div>
+        </button>
+      );
+    }
+
+    // ========================================
+    // 🧩 Lightbox Modal
+    // ========================================
+    function Lightbox({ item, onClose }) {
+      useEffect(() => {
+        const onKey = (e) => { if (e.key === "Escape") onClose(); };
+        document.addEventListener("keydown", onKey);
+        document.body.style.overflow = "hidden";
+        return () => {
+          document.removeEventListener("keydown", onKey);
+          document.body.style.overflow = "";
+        };
+      }, [onClose]);
+
+      if (!item) return null;
+      const isVideo = item.media_type === "video";
+
+      return (
+        <div
+          className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-sm"
+          onClick={onClose}
+          role="dialog"
+          aria-modal="true"
+          aria-label={item.title}
+        >
+          <div
+            className="modal-in relative w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-2xl bg-[#0d0d1f] border border-white/10 shadow-2xl flex flex-col lg:flex-row"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={onClose}
+              className="absolute top-3 right-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white hover:bg-yellow-400 hover:text-black transition-colors"
+              aria-label="닫기"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+
+            {/* Media */}
+            <div className="lg:w-3/5 bg-black flex items-center justify-center min-h-[240px] max-h-[50vh] lg:max-h-[92vh]">
+              {isVideo ? (
+                getYouTubeId(item.url) || item.url ? (
+                  <iframe
+                    src={item.url}
+                    title={item.title}
+                    className="w-full h-full aspect-video"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <a href={item.url} target="_blank" rel="noreferrer" className="text-yellow-400 underline p-8">
+                    영상 보기 (새 창)
+                  </a>
+                )
+              ) : (
+                <img
+                  src={item.hdurl || item.url}
+                  alt={item.title}
+                  className="w-full h-full object-contain"
+                />
+              )}
+            </div>
+
+            {/* Details */}
+            <div className="lg:w-2/5 p-6 sm:p-8 overflow-y-auto nice-scroll">
+              <p className="text-yellow-400 text-sm font-medium mb-2">{formatDate(item.date)}</p>
+              <h2 className="font-serif-display text-2xl sm:text-3xl font-bold leading-tight text-white mb-4">
+                {item.title}
+              </h2>
+              {item.copyright && (
+                <p className="text-sm text-white/50 mb-5">© {item.copyright.trim()}</p>
+              )}
+              <div className="h-px w-full bg-white/10 mb-5" />
+              <p className="text-white/70 leading-relaxed text-sm sm:text-[15px] whitespace-pre-line">
+                {item.explanation}
+              </p>
+              {(item.hdurl || item.url) && (
+                <a
+                  href={item.hdurl || item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 mt-6 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
+                >
+                  원본 보기
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14 5h5v5M19 5l-9 9M5 10v9h9" />
+                  </svg>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🧩 Loading / Error / Empty states
+    // ========================================
+    function LoadingState() {
+      return (
+        <div className="relative z-10 flex flex-col items-center justify-center py-32 gap-5">
+          <Spinner className="h-12 w-12" />
+          <p className="text-white/50 text-sm tracking-wide">우주의 사진을 불러오는 중...</p>
+        </div>
+      );
+    }
+
+    function ErrorState({ message, onRetry }) {
+      return (
+        <div className="relative z-10 flex flex-col items-center justify-center py-32 gap-5 text-center px-6">
+          <div className="text-5xl">🛰️</div>
+          <h3 className="text-xl font-semibold text-white">사진을 불러오지 못했습니다</h3>
+          <p className="text-white/50 text-sm max-w-md">{message}</p>
+          <Button onClick={onRetry}>다시 시도</Button>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+    function App() {
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [selected, setSelected] = useState(null);
+
+      const fetchData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const startDate = get30DaysAgoStr();
+          const endDate = getTodayStr();
+          const url = `${APOD_ENDPOINT}?api_key=${NASA_API_KEY}&start_date=${startDate}&end_date=${endDate}&thumbs=true`;
+          const res = await fetch(url);
+          if (!res.ok) {
+            throw new Error(`서버 응답 오류 (${res.status}). 잠시 후 다시 시도해 주세요.`);
+          }
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : [data];
+          // newest first
+          list.sort((a, b) => (a.date < b.date ? 1 : -1));
+          setItems(list);
+        } catch (e) {
+          setError(e.message || "네트워크 오류가 발생했습니다.");
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => { fetchData(); }, [fetchData]);
+
+      const openItem = useCallback((item) => setSelected(item), []);
+      const closeItem = useCallback(() => setSelected(null), []);
+
+      return (
+        <div className="relative min-h-screen">
+          {/* Starfield */}
+          <div className="starfield" aria-hidden="true">
+            <div className="stars" />
+            <div className="stars2" />
+          </div>
+
+          <Header count={loading || error ? 0 : items.length} />
+
+          <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pb-24">
+            {loading && <LoadingState />}
+            {!loading && error && <ErrorState message={error} onRetry={fetchData} />}
+            {!loading && !error && items.length === 0 && (
+              <p className="text-center text-white/50 py-32">표시할 사진이 없습니다.</p>
+            )}
+            {!loading && !error && items.length > 0 && (
+              <div className="photo-grid">
+                {items.map((item, i) => (
+                  <PhotoCard key={item.date + i} item={item} index={i} onOpen={openItem} />
+                ))}
+              </div>
+            )}
+          </main>
+
+          <footer className="relative z-10 text-center pb-12 text-white/30 text-xs">
+            <p>이미지 출처: NASA Astronomy Picture of the Day</p>
+          </footer>
+
+          {selected && <Lightbox item={selected} onClose={closeItem} />}
+        </div>
+      );
+    }
+
+    // ========================================
+    // Render
+    // ========================================
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

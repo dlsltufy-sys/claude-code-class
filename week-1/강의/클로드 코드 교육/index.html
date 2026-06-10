@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>기계설계 엔지니어 포트폴리오</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav id="navbar">
+    <div class="nav-inner">
+      <div class="logo">ME<span>.</span></div>
+      <ul class="nav-links">
+        <li><a href="#about">소개</a></li>
+        <li><a href="#skills">기술</a></li>
+        <li><a href="#experience">경력</a></li>
+        <li><a href="#projects">프로젝트</a></li>
+        <li><a href="#education">학력</a></li>
+        <li><a href="#contact" class="btn-nav">연락하기</a></li>
+      </ul>
+      <button class="hamburger" id="hamburger">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section id="hero">
+    <div class="hero-bg">
+      <div class="grid-lines"></div>
+    </div>
+    <div class="hero-content">
+      <p class="hero-sub fade-in">기계설계 엔지니어</p>
+      <h1 class="hero-title fade-in delay-1">안녕하세요,<br /><span>김민준</span>입니다</h1>
+      <p class="hero-desc fade-in delay-2">
+        10년 이상의 기계설계 경력을 바탕으로<br />
+        정밀 부품 설계부터 시스템 레벨 설계까지<br />
+        최적화된 솔루션을 제공합니다.
+      </p>
+      <div class="hero-btns fade-in delay-3">
+        <a href="#projects" class="btn-primary">프로젝트 보기</a>
+        <a href="#contact" class="btn-secondary">연락하기</a>
+      </div>
+    </div>
+    <div class="hero-visual fade-in delay-2">
+      <div class="gear-wrapper">
+        <div class="gear gear-large">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <path class="gear-path" d="M100,20 L112,10 L124,20 L130,10 L142,20 L148,15 L160,30 L155,40 L170,55 L180,50 L185,65 L175,72 L180,90 L192,90 L192,110 L180,110 L175,128 L185,135 L180,150 L170,145 L155,160 L160,170 L148,185 L142,180 L130,190 L124,180 L112,190 L100,180 L88,190 L76,180 L70,190 L58,185 L52,170 L45,175 L30,160 L35,150 L20,135 L15,140 L8,125 L20,118 L18,100 L8,100 L8,80 L20,80 L22,62 L10,55 L15,40 L25,45 L40,30 L35,20 L48,15 L52,25 L64,18 L70,10 L82,20 L88,10 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+            <circle cx="100" cy="100" r="35" fill="none" stroke="currentColor" stroke-width="3"/>
+            <circle cx="100" cy="100" r="8" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="gear gear-small">
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <path class="gear-path" d="M60,15 L68,8 L76,15 L80,8 L88,16 L92,12 L100,22 L96,28 L108,40 L115,36 L118,48 L110,52 L112,62 L120,62 L120,72 L112,72 L110,82 L118,86 L115,98 L108,94 L96,106 L100,112 L92,118 L88,112 L80,118 L76,110 L68,116 L60,110 L52,116 L44,110 L40,118 L32,112 L28,106 L20,112 L12,108 L10,96 L18,92 L16,82 L8,82 L8,62 L16,62 L18,52 L10,48 L12,36 L20,40 L28,28 L24,22 L32,12 L36,16 L44,8 L48,15 L52,8 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+            <circle cx="60" cy="60" r="20" fill="none" stroke="currentColor" stroke-width="3"/>
+            <circle cx="60" cy="60" r="5" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <a href="#about" class="scroll-down">
+      <span>스크롤</span>
+      <div class="arrow-down"></div>
+    </a>
+  </section>
+
+  <!-- About -->
+  <section id="about">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">ABOUT</span>
+        <h2>자기 소개</h2>
+      </div>
+      <div class="about-grid">
+        <div class="about-image">
+          <div class="image-frame">
+            <div class="image-placeholder">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="35" r="22" fill="currentColor" opacity="0.3"/>
+                <path d="M10,100 Q10,65 50,65 Q90,65 90,100" fill="currentColor" opacity="0.3"/>
+              </svg>
+            </div>
+            <div class="image-badge">10년+ 경력</div>
+          </div>
+        </div>
+        <div class="about-text">
+          <p class="about-lead">정밀 기계 설계의 전문가로서, 혁신적인 솔루션을 통해 제품의 성능과 신뢰성을 극대화합니다.</p>
+          <p>자동차 부품, 산업용 기계, 반도체 장비 등 다양한 분야에서 설계 경험을 쌓아왔습니다. SolidWorks, CATIA, AutoCAD 등 주요 CAD 툴을 능숙하게 다루며, FEA 해석을 통한 구조 최적화에 강점을 가지고 있습니다.</p>
+          <div class="about-stats">
+            <div class="stat">
+              <strong>10+</strong>
+              <span>년 경력</span>
+            </div>
+            <div class="stat">
+              <strong>50+</strong>
+              <span>완료 프로젝트</span>
+            </div>
+            <div class="stat">
+              <strong>15+</strong>
+              <span>특허 보유</span>
+            </div>
+            <div class="stat">
+              <strong>5+</strong>
+              <span>수상 실적</span>
+            </div>
+          </div>
+          <a href="#contact" class="btn-primary">함께 일하기</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Skills -->
+  <section id="skills">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">SKILLS</span>
+        <h2>보유 기술</h2>
+      </div>
+      <div class="skills-grid">
+        <div class="skill-category">
+          <h3><span class="icon">⚙</span> CAD / CAE 소프트웨어</h3>
+          <div class="skill-list">
+            <div class="skill-item">
+              <div class="skill-info"><span>SolidWorks</span><span>95%</span></div>
+              <div class="skill-bar"><div class="skill-fill" data-width="95"></div></div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-info"><span>CATIA V5</span><span>88%</span></div>
+              <div class="skill-bar"><div class="skill-fill" data-width="88"></div></div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-info"><span>AutoCAD</span><span>92%</span></div>
+              <div class="skill-bar"><div class="skill-fill" data-width="92"></div></div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-info"><span>ANSYS (FEA)</span><span>80%</span></div>
+              <div class="skill-bar"><div class="skill-fill" data-width="80"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="skill-category">
+          <h3><span class="icon">🔩</span> 설계 전문 분야</h3>
+          <div class="skill-tags">
+            <span class="tag">정밀 가공 설계</span>
+            <span class="tag">금형 설계</span>
+            <span class="tag">지그 & 픽스처</span>
+            <span class="tag">구조 해석</span>
+            <span class="tag">열 해석</span>
+            <span class="tag">공차 분석</span>
+            <span class="tag">DFM/DFA</span>
+            <span class="tag">GD&T</span>
+            <span class="tag">유압/공압 시스템</span>
+            <span class="tag">반도체 장비</span>
+          </div>
+        </div>
+        <div class="skill-category">
+          <h3><span class="icon">📋</span> 관련 지식 & 규격</h3>
+          <div class="skill-tags">
+            <span class="tag">ISO 2768</span>
+            <span class="tag">KS 규격</span>
+            <span class="tag">ASME Y14.5</span>
+            <span class="tag">ISO 9001</span>
+            <span class="tag">IATF 16949</span>
+            <span class="tag">재료 역학</span>
+            <span class="tag">열역학</span>
+            <span class="tag">유체역학</span>
+          </div>
+        </div>
+        <div class="skill-category">
+          <h3><span class="icon">💼</span> 업무 관리</h3>
+          <div class="skill-list">
+            <div class="skill-item">
+              <div class="skill-info"><span>프로젝트 관리</span><span>85%</span></div>
+              <div class="skill-bar"><div class="skill-fill" data-width="85"></div></div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-info"><span>팀 리더십</span><span>88%</span></div>
+              <div class="skill-bar"><div class="skill-fill" data-width="88"></div></div>
+            </div>
+            <div class="skill-item">
+              <div class="skill-info"><span>고객 커뮤니케이션</span><span>90%</span></div>
+              <div class="skill-bar"><div class="skill-fill" data-width="90"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Experience -->
+  <section id="experience">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">EXPERIENCE</span>
+        <h2>경력 사항</h2>
+      </div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <div>
+                <h3>수석 기계설계 엔지니어</h3>
+                <p class="company">현대모비스 주식회사</p>
+              </div>
+              <span class="period">2020 – 현재</span>
+            </div>
+            <ul>
+              <li>전기차 파워트레인 모듈 설계 총괄 (설계팀 8명 리드)</li>
+              <li>경량화 설계 적용으로 부품 중량 22% 절감 달성</li>
+              <li>CATIA V5 기반 3D 모델링 및 2D 도면 작성 표준화</li>
+              <li>ANSYS 구조해석을 통한 설계 최적화로 개발 비용 15% 절감</li>
+            </ul>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <div>
+                <h3>선임 기계설계 엔지니어</h3>
+                <p class="company">삼성전자 DS부문</p>
+              </div>
+              <span class="period">2016 – 2020</span>
+            </div>
+            <ul>
+              <li>반도체 웨이퍼 이송 장비 핵심 메커니즘 설계</li>
+              <li>초정밀 구동부 공차 설계 (±5μm 정밀도 확보)</li>
+              <li>SolidWorks PDM을 활용한 설계 데이터 관리 시스템 구축</li>
+              <li>신규 장비 설계 3건으로 특허 5건 출원</li>
+            </ul>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <div>
+                <h3>기계설계 엔지니어</h3>
+                <p class="company">두산중공업 주식회사</p>
+              </div>
+              <span class="period">2013 – 2016</span>
+            </div>
+            <ul>
+              <li>산업용 압축기 및 터빈 부품 설계</li>
+              <li>AutoCAD 2D 도면 작성 및 ISO 규격 적용</li>
+              <li>협력업체 기술 지원 및 품질 검사 수행</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Projects -->
+  <section id="projects">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">PROJECTS</span>
+        <h2>주요 프로젝트</h2>
+      </div>
+      <div class="projects-grid">
+        <div class="project-card">
+          <div class="project-img" style="background: linear-gradient(135deg, #1a3a6e, #2563eb)">
+            <div class="project-icon">⚡</div>
+          </div>
+          <div class="project-body">
+            <span class="project-tag">전기차</span>
+            <h3>EV 파워트레인 경량화 설계</h3>
+            <p>알루미늄 합금 및 복합소재 적용으로 기존 대비 22% 중량 절감. CATIA 토폴로지 최적화 기법 활용.</p>
+            <div class="project-meta">
+              <span>2023</span>
+              <div class="project-chips">
+                <span>CATIA</span><span>ANSYS</span><span>알루미늄 합금</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="project-card">
+          <div class="project-img" style="background: linear-gradient(135deg, #1a4e3a, #16a34a)">
+            <div class="project-icon">🔬</div>
+          </div>
+          <div class="project-body">
+            <span class="project-tag">반도체</span>
+            <h3>웨이퍼 이송 로봇 암 설계</h3>
+            <p>±5μm 반복 정밀도를 갖는 6축 웨이퍼 이송 암 설계. 진동 해석 및 열변위 보상 메커니즘 적용.</p>
+            <div class="project-meta">
+              <span>2019</span>
+              <div class="project-chips">
+                <span>SolidWorks</span><span>FEA</span><span>정밀제어</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="project-card">
+          <div class="project-img" style="background: linear-gradient(135deg, #4a1a6e, #9333ea)">
+            <div class="project-icon">🏭</div>
+          </div>
+          <div class="project-body">
+            <span class="project-tag">자동화</span>
+            <h3>자동 조립 지그 시스템 설계</h3>
+            <p>자동차 서스펜션 부품 조립용 멀티 포지셔닝 지그 설계. 사이클타임 35% 단축 실현.</p>
+            <div class="project-meta">
+              <span>2022</span>
+              <div class="project-chips">
+                <span>AutoCAD</span><span>공압설계</span><span>지그</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="project-card">
+          <div class="project-img" style="background: linear-gradient(135deg, #4a2a1a, #ea580c)">
+            <div class="project-icon">💨</div>
+          </div>
+          <div class="project-body">
+            <span class="project-tag">에너지</span>
+            <h3>산업용 압축기 임펠러 재설계</h3>
+            <p>CFD 해석 기반 임펠러 형상 최적화. 압축 효율 8% 향상 및 소음 진동 12dB 저감.</p>
+            <div class="project-meta">
+              <span>2015</span>
+              <div class="project-chips">
+                <span>CATIA</span><span>CFD</span><span>터보기계</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="project-card">
+          <div class="project-img" style="background: linear-gradient(135deg, #1a4a4a, #0891b2)">
+            <div class="project-icon">🔧</div>
+          </div>
+          <div class="project-body">
+            <span class="project-tag">금형</span>
+            <h3>사출 금형 설계 자동화 시스템</h3>
+            <p>SolidWorks API를 활용한 금형 설계 자동화 매크로 개발. 설계 시간 40% 단축.</p>
+            <div class="project-meta">
+              <span>2021</span>
+              <div class="project-chips">
+                <span>SolidWorks</span><span>VBA</span><span>금형설계</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="project-card">
+          <div class="project-img" style="background: linear-gradient(135deg, #3a1a1a, #dc2626)">
+            <div class="project-icon">🚀</div>
+          </div>
+          <div class="project-body">
+            <span class="project-tag">항공우주</span>
+            <h3>소형 위성 구조체 설계</h3>
+            <p>큐브샛(CubeSat) 3U 구조체 설계. 진동, 충격, 열진공 환경 하중 대응 설계 적용.</p>
+            <div class="project-meta">
+              <span>2018</span>
+              <div class="project-chips">
+                <span>CATIA</span><span>ANSYS</span><span>우주구조</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Education -->
+  <section id="education">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">EDUCATION</span>
+        <h2>학력 및 자격</h2>
+      </div>
+      <div class="edu-grid">
+        <div class="edu-col">
+          <h3 class="edu-title">학력</h3>
+          <div class="edu-card">
+            <div class="edu-icon">🎓</div>
+            <div>
+              <h4>기계공학 석사</h4>
+              <p class="school">서울대학교 공과대학</p>
+              <p class="edu-period">2011 – 2013</p>
+              <p class="edu-desc">열유체 및 기계 시스템 전공. 논문: 마이크로 채널 열교환기 최적 설계에 관한 연구</p>
+            </div>
+          </div>
+          <div class="edu-card">
+            <div class="edu-icon">🎓</div>
+            <div>
+              <h4>기계공학 학사</h4>
+              <p class="school">한양대학교 공과대학</p>
+              <p class="edu-period">2007 – 2011</p>
+              <p class="edu-desc">기계설계 및 생산공학 전공. 졸업 성적 최우수</p>
+            </div>
+          </div>
+        </div>
+        <div class="edu-col">
+          <h3 class="edu-title">자격증 & 수상</h3>
+          <div class="cert-list">
+            <div class="cert-item">
+              <div class="cert-badge blue">자격</div>
+              <div>
+                <strong>기계설계기사</strong>
+                <p>한국산업인력공단 | 2013</p>
+              </div>
+            </div>
+            <div class="cert-item">
+              <div class="cert-badge blue">자격</div>
+              <div>
+                <strong>일반기계기사</strong>
+                <p>한국산업인력공단 | 2012</p>
+              </div>
+            </div>
+            <div class="cert-item">
+              <div class="cert-badge green">공인</div>
+              <div>
+                <strong>SolidWorks CSWP</strong>
+                <p>Dassault Systèmes | 2016</p>
+              </div>
+            </div>
+            <div class="cert-item">
+              <div class="cert-badge green">공인</div>
+              <div>
+                <strong>CATIA V5 전문가</strong>
+                <p>Dassault Systèmes | 2018</p>
+              </div>
+            </div>
+            <div class="cert-item">
+              <div class="cert-badge gold">수상</div>
+              <div>
+                <strong>산업통상자원부장관상</strong>
+                <p>우수 산업 기술인 표창 | 2022</p>
+              </div>
+            </div>
+            <div class="cert-item">
+              <div class="cert-badge gold">수상</div>
+              <div>
+                <strong>대한기계학회 우수논문상</strong>
+                <p>기계설계 부문 | 2020</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section id="contact">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">CONTACT</span>
+        <h2>연락하기</h2>
+        <p class="section-desc">프로젝트 협업이나 채용 제안은 언제든지 환영합니다.</p>
+      </div>
+      <div class="contact-grid">
+        <div class="contact-info">
+          <div class="contact-item">
+            <div class="contact-icon">📧</div>
+            <div>
+              <strong>이메일</strong>
+              <p>minjun.kim@engineer.com</p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon">📱</div>
+            <div>
+              <strong>전화</strong>
+              <p>010-1234-5678</p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon">📍</div>
+            <div>
+              <strong>위치</strong>
+              <p>서울특별시 강남구</p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon">💼</div>
+            <div>
+              <strong>링크드인</strong>
+              <p>linkedin.com/in/minjun-kim-mech</p>
+            </div>
+          </div>
+        </div>
+        <form class="contact-form" id="contactForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>이름</label>
+              <input type="text" placeholder="홍길동" required />
+            </div>
+            <div class="form-group">
+              <label>이메일</label>
+              <input type="email" placeholder="email@example.com" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>제목</label>
+            <input type="text" placeholder="문의 제목" required />
+          </div>
+          <div class="form-group">
+            <label>내용</label>
+            <textarea rows="5" placeholder="문의 내용을 입력해주세요..." required></textarea>
+          </div>
+          <button type="submit" class="btn-primary btn-full">메시지 보내기</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <div class="logo">ME<span>.</span></div>
+        <p>© 2026 김민준. All rights reserved.</p>
+        <p class="footer-sub">기계설계 엔지니어 포트폴리오</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>색상 팔레트</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fadeIn 0.25s ease-out; }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useCallback } = React;
+
+    const COLORS = [
+      {
+        name: '빨강', hex: '#EF4444',
+        related: [
+          { name: '연빨강', hex: '#FCA5A5' },
+          { name: '분홍빨강', hex: '#F87171' },
+          { name: '장미', hex: '#F43F5E' },
+          { name: '진빨강', hex: '#DC2626' },
+          { name: '어두운빨강', hex: '#991B1B' },
+        ],
+      },
+      {
+        name: '주황', hex: '#F97316',
+        related: [
+          { name: '연주황', hex: '#FDBA74' },
+          { name: '살구', hex: '#FB923C' },
+          { name: '호박', hex: '#F59E0B' },
+          { name: '진주황', hex: '#EA580C' },
+          { name: '갈주황', hex: '#C2410C' },
+        ],
+      },
+      {
+        name: '호박', hex: '#F59E0B',
+        related: [
+          { name: '연호박', hex: '#FDE68A' },
+          { name: '노랑호박', hex: '#FCD34D' },
+          { name: '주황호박', hex: '#F97316' },
+          { name: '진호박', hex: '#D97706' },
+          { name: '갈호박', hex: '#92400E' },
+        ],
+      },
+      {
+        name: '노랑', hex: '#EAB308',
+        related: [
+          { name: '연노랑', hex: '#FEF08A' },
+          { name: '밝은노랑', hex: '#FACC15' },
+          { name: '라임노랑', hex: '#BEF264' },
+          { name: '진노랑', hex: '#CA8A04' },
+          { name: '어두운노랑', hex: '#854D0E' },
+        ],
+      },
+      {
+        name: '라임', hex: '#84CC16',
+        related: [
+          { name: '연라임', hex: '#D9F99D' },
+          { name: '밝은라임', hex: '#BEF264' },
+          { name: '초록라임', hex: '#4ADE80' },
+          { name: '진라임', hex: '#65A30D' },
+          { name: '어두운라임', hex: '#3F6212' },
+        ],
+      },
+      {
+        name: '초록', hex: '#22C55E',
+        related: [
+          { name: '연초록', hex: '#86EFAC' },
+          { name: '민트초록', hex: '#4ADE80' },
+          { name: '에메랄드', hex: '#10B981' },
+          { name: '진초록', hex: '#16A34A' },
+          { name: '어두운초록', hex: '#14532D' },
+        ],
+      },
+      {
+        name: '에메랄드', hex: '#10B981',
+        related: [
+          { name: '연에메랄드', hex: '#6EE7B7' },
+          { name: '밝은에메랄드', hex: '#34D399' },
+          { name: '청록에메랄드', hex: '#14B8A6' },
+          { name: '진에메랄드', hex: '#059669' },
+          { name: '어두운에메랄드', hex: '#064E3B' },
+        ],
+      },
+      {
+        name: '청록', hex: '#14B8A6',
+        related: [
+          { name: '연청록', hex: '#99F6E4' },
+          { name: '밝은청록', hex: '#2DD4BF' },
+          { name: '하늘청록', hex: '#06B6D4' },
+          { name: '진청록', hex: '#0D9488' },
+          { name: '어두운청록', hex: '#134E4A' },
+        ],
+      },
+      {
+        name: '하늘', hex: '#06B6D4',
+        related: [
+          { name: '연하늘', hex: '#A5F3FC' },
+          { name: '밝은하늘', hex: '#22D3EE' },
+          { name: '파랑하늘', hex: '#38BDF8' },
+          { name: '진하늘', hex: '#0891B2' },
+          { name: '어두운하늘', hex: '#164E63' },
+        ],
+      },
+      {
+        name: '파랑', hex: '#3B82F6',
+        related: [
+          { name: '연파랑', hex: '#93C5FD' },
+          { name: '밝은파랑', hex: '#60A5FA' },
+          { name: '인디고파랑', hex: '#6366F1' },
+          { name: '진파랑', hex: '#2563EB' },
+          { name: '어두운파랑', hex: '#1E3A8A' },
+        ],
+      },
+      {
+        name: '남색', hex: '#1E3A8A',
+        related: [
+          { name: '연남색', hex: '#93C5FD' },
+          { name: '중간남색', hex: '#1D4ED8' },
+          { name: '인디고', hex: '#3730A3' },
+          { name: '진남색', hex: '#1E3A8A' },
+          { name: '어두운남색', hex: '#172554' },
+        ],
+      },
+      {
+        name: '인디고', hex: '#6366F1',
+        related: [
+          { name: '연인디고', hex: '#C7D2FE' },
+          { name: '밝은인디고', hex: '#A5B4FC' },
+          { name: '바이올렛', hex: '#8B5CF6' },
+          { name: '진인디고', hex: '#4F46E5' },
+          { name: '어두운인디고', hex: '#312E81' },
+        ],
+      },
+      {
+        name: '바이올렛', hex: '#8B5CF6',
+        related: [
+          { name: '연바이올렛', hex: '#DDD6FE' },
+          { name: '밝은바이올렛', hex: '#C4B5FD' },
+          { name: '보라', hex: '#A855F7' },
+          { name: '진바이올렛', hex: '#7C3AED' },
+          { name: '어두운바이올렛', hex: '#4C1D95' },
+        ],
+      },
+      {
+        name: '보라', hex: '#A855F7',
+        related: [
+          { name: '연보라', hex: '#E9D5FF' },
+          { name: '밝은보라', hex: '#D8B4FE' },
+          { name: '자홍보라', hex: '#C026D3' },
+          { name: '진보라', hex: '#9333EA' },
+          { name: '어두운보라', hex: '#581C87' },
+        ],
+      },
+      {
+        name: '자홍', hex: '#D946EF',
+        related: [
+          { name: '연자홍', hex: '#F5D0FE' },
+          { name: '밝은자홍', hex: '#E879F9' },
+          { name: '분홍자홍', hex: '#EC4899' },
+          { name: '진자홍', hex: '#C026D3' },
+          { name: '어두운자홍', hex: '#701A75' },
+        ],
+      },
+      {
+        name: '분홍', hex: '#EC4899',
+        related: [
+          { name: '연분홍', hex: '#FBCFE8' },
+          { name: '밝은분홍', hex: '#F9A8D4' },
+          { name: '장미분홍', hex: '#F43F5E' },
+          { name: '진분홍', hex: '#DB2777' },
+          { name: '어두운분홍', hex: '#831843' },
+        ],
+      },
+      {
+        name: '장미', hex: '#F43F5E',
+        related: [
+          { name: '연장미', hex: '#FECDD3' },
+          { name: '밝은장미', hex: '#FDA4AF' },
+          { name: '분홍장미', hex: '#EC4899' },
+          { name: '진장미', hex: '#E11D48' },
+          { name: '어두운장미', hex: '#881337' },
+        ],
+      },
+      {
+        name: '갈색', hex: '#92400E',
+        related: [
+          { name: '연갈색', hex: '#D6C7A1' },
+          { name: '카멜', hex: '#C8964A' },
+          { name: '시에나', hex: '#A0522D' },
+          { name: '진갈색', hex: '#78350F' },
+          { name: '어두운갈색', hex: '#451A03' },
+        ],
+      },
+      {
+        name: '베이지', hex: '#D6C7A1',
+        related: [
+          { name: '크림', hex: '#FFFBEB' },
+          { name: '연베이지', hex: '#FEF3C7' },
+          { name: '모래', hex: '#E5C98B' },
+          { name: '진베이지', hex: '#B8A06B' },
+          { name: '갈베이지', hex: '#92400E' },
+        ],
+      },
+      {
+        name: '회색', hex: '#6B7280',
+        related: [
+          { name: '연회색', hex: '#E5E7EB' },
+          { name: '밝은회색', hex: '#9CA3AF' },
+          { name: '슬레이트', hex: '#64748B' },
+          { name: '진회색', hex: '#4B5563' },
+          { name: '어두운회색', hex: '#1F2937' },
+        ],
+      },
+      {
+        name: '슬레이트', hex: '#475569',
+        related: [
+          { name: '연슬레이트', hex: '#CBD5E1' },
+          { name: '밝은슬레이트', hex: '#94A3B8' },
+          { name: '회색슬레이트', hex: '#6B7280' },
+          { name: '진슬레이트', hex: '#334155' },
+          { name: '어두운슬레이트', hex: '#1E293B' },
+        ],
+      },
+      {
+        name: '흰색', hex: '#FFFFFF',
+        related: [
+          { name: '오프화이트', hex: '#F8F9FA' },
+          { name: '아이보리', hex: '#FFFFF0' },
+          { name: '연회색', hex: '#F3F4F6' },
+          { name: '실버', hex: '#D1D5DB' },
+          { name: '밝은회색', hex: '#9CA3AF' },
+        ],
+      },
+      {
+        name: '검정', hex: '#111827',
+        related: [
+          { name: '짙은회색', hex: '#1F2937' },
+          { name: '차콜', hex: '#374151' },
+          { name: '어두운슬레이트', hex: '#1E293B' },
+          { name: '군청회색', hex: '#0F172A' },
+          { name: '진검정', hex: '#030712' },
+        ],
+      },
+    ];
+
+    function getContrastText(hex) {
+      const c = hex.replace('#', '');
+      const r = parseInt(c.substring(0, 2), 16);
+      const g = parseInt(c.substring(2, 4), 16);
+      const b = parseInt(c.substring(4, 6), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.6 ? '#111827' : '#FFFFFF';
+    }
+
+    function ColorSwatch({ color, selected, onClick }) {
+      const isLight = getContrastText(color.hex) === '#111827';
+      return (
+        <button
+          type="button"
+          onClick={() => onClick(color)}
+          aria-label={`${color.name} 색상 선택`}
+          aria-pressed={selected}
+          className={`group relative aspect-square rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-400/50 hover:-translate-y-1 hover:shadow-lg ${
+            selected ? 'ring-4 ring-blue-500 scale-105 shadow-lg' : 'ring-1 ring-black/10'
+          } ${isLight ? 'border border-slate-200' : ''}`}
+          style={{ backgroundColor: color.hex }}
+        >
+          <span
+            className="absolute inset-x-0 bottom-0 rounded-b-xl px-1 py-1 text-[11px] font-medium opacity-0 transition-opacity group-hover:opacity-100"
+            style={{
+              color: getContrastText(color.hex),
+              backgroundColor: isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.12)',
+            }}
+          >
+            {color.name}
+          </span>
+        </button>
+      );
+    }
+
+    function RelatedColorCard({ color, onCopy, copiedHex }) {
+      const isLight = getContrastText(color.hex) === '#111827';
+      const isCopied = copiedHex === color.hex;
+      return (
+        <button
+          type="button"
+          onClick={() => onCopy(color.hex)}
+          title={`${color.name} 복사`}
+          className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-all hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+            isCopied ? 'border-green-400 bg-green-50' : 'border-slate-200 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div
+            className={`h-10 w-10 flex-shrink-0 rounded-lg shadow-sm ${isLight ? 'border border-slate-200' : ''}`}
+            style={{ backgroundColor: color.hex }}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-slate-700">{color.name}</p>
+            <p className="font-mono text-xs text-slate-500">{color.hex.toUpperCase()}</p>
+          </div>
+          <span className={`text-xs font-medium ${isCopied ? 'text-green-600' : 'text-slate-400 opacity-0 group-hover:opacity-100'}`}>
+            {isCopied ? '✓ 복사됨' : '복사'}
+          </span>
+        </button>
+      );
+    }
+
+    function PreviewPanel({ color, onCopy, copiedHex }) {
+      if (!color) {
+        return (
+          <div className="flex h-full min-h-[320px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center">
+            <div className="mb-3 text-4xl">🎨</div>
+            <p className="text-slate-500">색상을 선택하면<br />연관 색상이 표시됩니다.</p>
+          </div>
+        );
+      }
+
+      const textColor = getContrastText(color.hex);
+
+      return (
+        <div className="animate-fade-in space-y-4">
+          {/* 선택된 색상 메인 카드 */}
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div
+              className="flex h-40 items-end justify-between p-5"
+              style={{ backgroundColor: color.hex }}
+            >
+              <span className="text-xl font-bold" style={{ color: textColor }}>{color.name}</span>
+              <button
+                type="button"
+                onClick={() => onCopy(color.hex)}
+                className="rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 focus:outline-none"
+                style={{
+                  color: textColor,
+                  backgroundColor: textColor === '#111827' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)',
+                }}
+              >
+                {copiedHex === color.hex ? '✓ 복사됨!' : color.hex.toUpperCase()}
+              </button>
+            </div>
+          </div>
+
+          {/* 연관 색상 목록 */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">연관 색상</p>
+            <div className="space-y-2">
+              {color.related.map((rel) => (
+                <RelatedColorCard
+                  key={rel.hex}
+                  color={rel}
+                  onCopy={onCopy}
+                  copiedHex={copiedHex}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [selected, setSelected] = useState(null);
+      const [copiedHex, setCopiedHex] = useState(null);
+
+      const handleSelect = useCallback((color) => {
+        setSelected(color);
+        setCopiedHex(null);
+      }, []);
+
+      const handleCopy = useCallback(async (hex) => {
+        const text = hex.toUpperCase();
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          setCopiedHex(hex);
+          setTimeout(() => setCopiedHex(null), 1500);
+        } catch (e) {
+          console.error('복사 실패', e);
+        }
+      }, []);
+
+      return (
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
+          <header className="mb-8 text-center">
+            <h1 className="text-3xl font-bold text-slate-800 sm:text-4xl">색상 팔레트</h1>
+            <p className="mt-2 text-slate-500">색상을 클릭하면 연관 색상의 HEX 코드를 확인할 수 있습니다.</p>
+          </header>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-6">
+                {COLORS.map((color) => (
+                  <ColorSwatch
+                    key={color.hex + color.name}
+                    color={color}
+                    selected={selected && selected.hex === color.hex}
+                    onClick={handleSelect}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <aside className="lg:sticky lg:top-8 lg:self-start">
+              <PreviewPanel color={selected} onCopy={handleCopy} copiedHex={copiedHex} />
+            </aside>
+          </div>
+
+          <footer className="mt-10 text-center text-xs text-slate-400">
+            총 {COLORS.length}가지 색상 · 각 색상마다 5가지 연관 색상
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

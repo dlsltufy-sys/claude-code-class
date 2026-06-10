@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>포켓몬 도감</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+    body { font-family: 'Noto Sans KR', sans-serif; }
+    .poke-card { transition: transform 0.18s, box-shadow 0.18s; }
+    .poke-card:hover { transform: translateY(-5px); box-shadow: 0 10px 28px rgba(0,0,0,0.15); }
+    .pokeball-spin { animation: spin 4s linear infinite; }
+    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    .modal-overlay { animation: fadeIn 0.15s ease; }
+    .modal-box { animation: popIn 0.2s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    @keyframes popIn { from{opacity:0;transform:scale(0.88)} to{opacity:1;transform:scale(1)} }
+    .skeleton { background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.3s infinite; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+
+    const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+    // ========================================
+    // 🗂️ 상수
+    // ========================================
+
+    const API            = 'https://pokeapi.co/api/v2';
+    const SPRITE_BASE    = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+    const ARTWORK_BASE   = `${SPRITE_BASE}/other/official-artwork`;
+    const ITEMS_PER_PAGE = 24;
+
+    // 한글 이름 → ID (Gen 1 전체 + 인기 포켓몬)
+    const KO_TO_ID = {
+      '이상해씨':1,'이상해풀':2,'이상해꽃':3,'파이리':4,'리자드':5,'리자몽':6,
+      '꼬부기':7,'어니부기':8,'거북왕':9,'캐터피':10,'단데기':11,'버터플':12,
+      '뿔충이':13,'딱충이':14,'독침붕':15,'구구':16,'피죤':17,'피죤투':18,
+      '꼬렛':19,'레트라':20,'깨비참':21,'깨비드릴조':22,'아보':23,'아보크':24,
+      '피카추':25,'라이츄':26,'모래두지':27,'고지':28,'니드런':29,'니드리나':30,
+      '니드퀸':31,'니드리노':33,'니드킹':34,'삐':35,'픽시':36,
+      '식스테일':37,'나인테일':38,'푸린':39,'푸크린':40,'주뱃':41,'골뱃':42,
+      '뚜벅초':43,'냄새꼬':44,'라플레시아':45,'파라스':46,'파라섹트':47,
+      '콘팡':48,'도나리':49,'디그다':50,'닥트리오':51,'나옹':52,'페르시온':53,
+      '고라파덕':54,'골덕':55,'망키':56,'성원숭':57,'가디':58,'윈디':59,
+      '발챙이':60,'슈류챙이':61,'강챙이':62,'케이시':63,'윤겔라':64,'후딘':65,
+      '알통몬':66,'근육몬':67,'괴력몬':68,'모다피':69,'우츠동':70,'우츠보트':71,
+      '왕눈해':72,'독파리':73,'꼬마돌':74,'데구리':75,'딱구리':76,
+      '포니타':77,'날쌩마':78,'야돈':79,'야도란':80,'코일':81,'레어코일':82,
+      '파오리':83,'두두':84,'두트리오':85,'쥬쥬':86,'쥬레곤':87,
+      '질뻐기':88,'질퍼기':89,'셀러':90,'파르셀':91,
+      '고우스트':92,'고울':93,'팬텀':94,'롱스톤':95,'슬리프':96,'슬리퍼':97,
+      '크랩':98,'킹크랩':99,'찌리리공':100,'붐볼':101,'아라리':102,'나시':103,
+      '텅구리':104,'텅빈':105,'시라소몬':106,'홍수몬':107,'내루미':108,
+      '또가스':109,'또도가스':110,'뿔카노':111,'강코':112,'럭키':113,
+      '덩쿠리':114,'캥카':115,'쏘드라':116,'시드라':117,'콘치':118,'왕콘치':119,
+      '별가사리':120,'아쿠스타':121,'마임맨':122,'스라크':123,'루주라':124,
+      '에레브':125,'마그마':126,'쁘사이저':127,'켄타로스':128,
+      '잉어킹':129,'갸라도스':130,'라프라스':131,'메타몽':132,'이브이':133,
+      '샤워스':134,'쥬피썬더':135,'부스터':136,'폴리곤':137,
+      '암나이트':138,'암스타':139,'투구':140,'투구푸스':141,'프테라':142,
+      '잠만보':143,'프리저':144,'썬더':145,'파이어':146,
+      '미니룡':147,'신뇽':148,'망나뇽':149,'뮤츠':150,'뮤':151,
+      // Gen 2
+      '치코리타':152,'베이리프':153,'메가니움':154,'브케인':155,'마그케인':156,'블레이범':157,
+      '리아코':158,'엘리게이':159,'장크로다일':160,'토게피':175,'토게틱':176,
+      '마릴':183,'마릴리':184,'에스피온':196,'블래키':197,'우파':194,'누오':195,
+      '루기아':249,'칠색조':250,'세레비':251,
+      // Gen 3
+      '나무지기':252,'나무돌이':253,'나무킹':254,'아차모':255,'영치코':256,'번치코':257,
+      '물짱이':258,'늪짱이':259,'대짱이':260,'가브리아스':445,'루카리오':448,'리오루':447,
+      '레쿠쟈':384,'가이오가':382,'그란돈':383,'레지록':377,'레지아이스':378,'레지스틸':379,
+      // Gen 4
+      '디아루가':483,'펄기아':484,'기라티나':487,'아르세우스':493,
+      // Gen 5
+      '레시라무':643,'제크로무':644,'큐레무':646,'비크티니':494,
+      // Gen 6
+      '제르네아스':716,'이벨타르':717,
+      // Gen 7
+      '솔가레오':791,'루나아라':792,'네크로즈마':800,
+      // Gen 8
+      '자시안':888,'자마젠타':889,'에터나투스':890,
+      // Gen 9
+      '코라이돈':1007,'미라이돈':1008,
+    };
+
+    // ID → 한글 이름 역매핑
+    const ID_TO_KO = Object.fromEntries(
+      Object.entries(KO_TO_ID).map(([k, v]) => [v, k])
+    );
+
+    const TYPE_KO = {
+      electric:'전기',water:'물',fire:'불꽃',poison:'독',psychic:'에스퍼',
+      normal:'노말',grass:'풀',ice:'얼음',fighting:'격투',ground:'땅',
+      flying:'비행',bug:'벌레',rock:'바위',ghost:'고스트',dragon:'드래곤',
+      dark:'악',steel:'강철',fairy:'페어리',
+    };
+
+    const TYPE_COLORS = {
+      '전기':  {card:'from-yellow-50 to-yellow-100',  border:'border-yellow-300', badge:'bg-yellow-400 text-yellow-900'},
+      '물':    {card:'from-blue-50 to-blue-100',       border:'border-blue-300',   badge:'bg-blue-500 text-white'},
+      '불꽃':  {card:'from-orange-50 to-orange-100',   border:'border-orange-300', badge:'bg-orange-400 text-white'},
+      '독':    {card:'from-purple-50 to-purple-100',   border:'border-purple-300', badge:'bg-purple-500 text-white'},
+      '에스퍼':{card:'from-pink-50 to-pink-100',       border:'border-pink-300',   badge:'bg-pink-400 text-white'},
+      '노말':  {card:'from-gray-50 to-gray-100',       border:'border-gray-300',   badge:'bg-gray-400 text-white'},
+      '풀':    {card:'from-green-50 to-green-100',     border:'border-green-300',  badge:'bg-green-500 text-white'},
+      '얼음':  {card:'from-cyan-50 to-cyan-100',       border:'border-cyan-300',   badge:'bg-cyan-400 text-white'},
+      '격투':  {card:'from-red-50 to-red-100',         border:'border-red-300',    badge:'bg-red-500 text-white'},
+      '땅':    {card:'from-amber-50 to-amber-100',     border:'border-amber-300',  badge:'bg-amber-600 text-white'},
+      '비행':  {card:'from-sky-50 to-sky-100',         border:'border-sky-300',    badge:'bg-sky-400 text-white'},
+      '벌레':  {card:'from-lime-50 to-lime-100',       border:'border-lime-300',   badge:'bg-lime-500 text-white'},
+      '바위':  {card:'from-stone-50 to-stone-100',     border:'border-stone-300',  badge:'bg-stone-500 text-white'},
+      '고스트':{card:'from-indigo-50 to-indigo-100',   border:'border-indigo-300', badge:'bg-indigo-500 text-white'},
+      '드래곤':{card:'from-violet-50 to-violet-100',   border:'border-violet-300', badge:'bg-violet-600 text-white'},
+      '악':    {card:'from-neutral-50 to-neutral-100', border:'border-neutral-400',badge:'bg-neutral-700 text-white'},
+      '강철':  {card:'from-slate-50 to-slate-100',     border:'border-slate-300',  badge:'bg-slate-500 text-white'},
+      '페어리':{card:'from-rose-50 to-rose-100',       border:'border-rose-300',   badge:'bg-rose-400 text-white'},
+    };
+    const DEFAULT_COLOR = {card:'from-gray-50 to-gray-100',border:'border-gray-200',badge:'bg-gray-400 text-white'};
+    const getColor = t => TYPE_COLORS[t] || DEFAULT_COLOR;
+
+    function idFromUrl(url) {
+      return parseInt(url.split('/').filter(Boolean).pop());
+    }
+
+    // ========================================
+    // 🌐 API 캐시
+    // ========================================
+
+    const pokeCache = {};
+
+    async function fetchPokemon(id) {
+      const key = String(id);
+      if (pokeCache[key]) return pokeCache[key];
+
+      const [pr, sr] = await Promise.all([
+        fetch(`${API}/pokemon/${id}`),
+        fetch(`${API}/pokemon-species/${id}`),
+      ]);
+      if (!pr.ok) throw new Error(`Not found: ${id}`);
+      const poke    = await pr.json();
+      const species = await sr.json();
+
+      const nameKo = species.names.find(n => n.language.name === 'ko')?.name || ID_TO_KO[id] || poke.name;
+      const descKo = (
+        species.flavor_text_entries.find(e => e.language.name === 'ko')?.flavor_text ||
+        species.flavor_text_entries.find(e => e.language.name === 'en')?.flavor_text || ''
+      ).replace(/[\f\n]/g, ' ');
+      const catKo = species.genera.find(g => g.language.name === 'ko')?.genus
+                 || species.genera.find(g => g.language.name === 'en')?.genus || '';
+
+      const types   = poke.types.map(t => TYPE_KO[t.type.name] || t.type.name);
+      const statMap = Object.fromEntries(poke.stats.map(s => [s.stat.name, s.base_stat]));
+
+      const result = {
+        id: poke.id, name: nameKo,
+        nameEn: poke.name.charAt(0).toUpperCase() + poke.name.slice(1),
+        image:  `${ARTWORK_BASE}/${poke.id}.png`,
+        sprite: `${SPRITE_BASE}/${poke.id}.png`,
+        types, primaryType: types[0],
+        height: (poke.height / 10).toFixed(1) + 'm',
+        weight: (poke.weight / 10).toFixed(1) + 'kg',
+        abilities: poke.abilities.map(a => a.ability.name).join(' / '),
+        category: catKo, description: descKo,
+        stats: {
+          hp:      statMap['hp'] ?? 0,
+          attack:  statMap['attack'] ?? 0,
+          defense: statMap['defense'] ?? 0,
+          spAtk:   statMap['special-attack'] ?? 0,
+          spDef:   statMap['special-defense'] ?? 0,
+          speed:   statMap['speed'] ?? 0,
+        },
+      };
+
+      pokeCache[key]                     = result;
+      pokeCache[poke.name.toLowerCase()] = result;
+      return result;
+    }
+
+    // ========================================
+    // 🎨 디자인 시스템
+    // ========================================
+
+    function Badge({ type }) {
+      const c = getColor(type);
+      return <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${c.badge}`}>{type}</span>;
+    }
+
+    function StatBar({ label, value, max = 160 }) {
+      const pct = Math.min(100, Math.round((value / max) * 100));
+      const bar = value >= 80 ? 'bg-green-400' : value >= 50 ? 'bg-yellow-400' : 'bg-red-400';
+      return (
+        <div className="flex items-center gap-2">
+          <span className="w-16 text-gray-400 text-right shrink-0 text-xs">{label}</span>
+          <span className="w-8 font-bold text-gray-700 text-right shrink-0 text-sm">{value}</span>
+          <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div className={`h-2 rounded-full ${bar} transition-all duration-700`} style={{width:`${pct}%`}} />
+          </div>
+        </div>
+      );
+    }
+
+    function Modal({ pokemon, onClose }) {
+      if (!pokemon) return null;
+      const c = getColor(pokemon.primaryType);
+      return (
+        <div className="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+          <div className={`modal-box bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border-2 ${c.border}`} onClick={e => e.stopPropagation()}>
+            <div className={`bg-gradient-to-br ${c.card} p-6 flex flex-col items-center relative`}>
+              <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+              <div className="text-gray-400 text-xs font-mono self-start">#{String(pokemon.id).padStart(3,'0')}</div>
+              <img src={pokemon.image} alt={pokemon.name} className="w-40 h-40 object-contain drop-shadow-lg" />
+              <h2 className="text-2xl font-black text-gray-800 mt-1">{pokemon.name}</h2>
+              <p className="text-gray-400 text-sm">{pokemon.nameEn}</p>
+              <div className="mt-2 flex gap-1.5 flex-wrap justify-center">
+                {pokemon.types.map(t => <Badge key={t} type={t} />)}
+              </div>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-gray-600 text-sm leading-relaxed bg-gray-50 rounded-xl p-3 border border-gray-100">
+                {pokemon.description || '설명 정보가 없습니다.'}
+              </p>
+              <div className="grid grid-cols-2 gap-2.5">
+                {[['분류',pokemon.category],['특성',pokemon.abilities],['키',pokemon.height],['몸무게',pokemon.weight]].map(([l,v])=>(
+                  <div key={l} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <div className="text-gray-400 text-xs mb-0.5">{l}</div>
+                    <div className="font-bold text-gray-700 text-sm">{v}</div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">기본 스탯</div>
+                <div className="space-y-1.5">
+                  <StatBar label="HP"       value={pokemon.stats.hp} />
+                  <StatBar label="공격"     value={pokemon.stats.attack} />
+                  <StatBar label="방어"     value={pokemon.stats.defense} />
+                  <StatBar label="특수공격" value={pokemon.stats.spAtk} />
+                  <StatBar label="특수방어" value={pokemon.stats.spDef} />
+                  <StatBar label="스피드"   value={pokemon.stats.speed} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🧩 가벼운 포켓몬 카드 (스프라이트 + 이름만)
+    // ========================================
+
+    function PokemonCard({ id, enName, loadingId, onClick }) {
+      const koName = ID_TO_KO[id] || null;
+      const displayName = koName || enName;
+      const isLoading   = loadingId === id;
+
+      return (
+        <div
+          className="poke-card cursor-pointer bg-white border-2 border-gray-100 hover:border-red-200 rounded-2xl p-3 flex flex-col items-center gap-1.5 select-none"
+          onClick={() => onClick(id)}
+          role="button" tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && onClick(id)}
+        >
+          <div className="text-gray-300 text-xs font-mono self-end">#{String(id).padStart(3,'0')}</div>
+          <div className="relative w-20 h-20 flex items-center justify-center">
+            {isLoading ? (
+              <div className="w-8 h-8 border-4 border-red-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <img
+                src={`${SPRITE_BASE}/other/official-artwork/${id}.png`}
+                alt={displayName}
+                className="w-20 h-20 object-contain drop-shadow"
+                loading="lazy"
+                onError={e => { e.target.src = `${SPRITE_BASE}/${id}.png`; }}
+              />
+            )}
+          </div>
+          <div className="font-bold text-gray-800 text-sm text-center leading-tight">{displayName}</div>
+          {koName && <div className="text-gray-400 text-xs">{enName}</div>}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🔢 페이지네이션
+    // ========================================
+
+    function Pagination({ current, total, onChange }) {
+      if (total <= 1) return null;
+
+      // 보여줄 페이지 번호 목록 계산
+      const pages = [];
+      const delta = 2;
+      for (let i = 1; i <= total; i++) {
+        if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+          pages.push(i);
+        }
+      }
+      // 생략 부호 삽입
+      const withEllipsis = [];
+      pages.forEach((p, i) => {
+        if (i > 0 && p - pages[i - 1] > 1) withEllipsis.push('…');
+        withEllipsis.push(p);
+      });
+
+      const btn = 'w-9 h-9 rounded-xl text-sm font-bold transition-colors flex items-center justify-center';
+
+      return (
+        <div className="flex items-center justify-center gap-1 mt-8 flex-wrap">
+          <button
+            onClick={() => onChange(1)}
+            disabled={current === 1}
+            className={`${btn} ${current === 1 ? 'text-gray-300 cursor-default' : 'text-gray-500 hover:bg-gray-200'}`}
+          >«</button>
+          <button
+            onClick={() => onChange(current - 1)}
+            disabled={current === 1}
+            className={`${btn} ${current === 1 ? 'text-gray-300 cursor-default' : 'text-gray-500 hover:bg-gray-200'}`}
+          >‹</button>
+
+          {withEllipsis.map((p, i) =>
+            p === '…' ? (
+              <span key={`e${i}`} className="w-9 h-9 flex items-center justify-center text-gray-400 text-sm">…</span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => onChange(p)}
+                className={`${btn} ${p === current ? 'bg-red-500 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+              >{p}</button>
+            )
+          )}
+
+          <button
+            onClick={() => onChange(current + 1)}
+            disabled={current === total}
+            className={`${btn} ${current === total ? 'text-gray-300 cursor-default' : 'text-gray-500 hover:bg-gray-200'}`}
+          >›</button>
+          <button
+            onClick={() => onChange(total)}
+            disabled={current === total}
+            className={`${btn} ${current === total ? 'text-gray-300 cursor-default' : 'text-gray-500 hover:bg-gray-200'}`}
+          >»</button>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🧩 헤더
+    // ========================================
+
+    function Header({ total, filtered, isFiltered }) {
+      return (
+        <header className="bg-red-600 shadow-lg sticky top-0 z-30">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full border-4 border-white overflow-hidden flex-shrink-0 pokeball-spin">
+              <div className="w-full h-1/2 bg-red-600"/>
+              <div className="w-full h-1/2 bg-white"/>
+            </div>
+            <div>
+              <h1 className="text-white font-black text-xl tracking-tight leading-none">포켓몬 도감</h1>
+              <p className="text-red-200 text-xs">Pokémon Pokédex</p>
+            </div>
+            <div className="ml-auto text-right">
+              {isFiltered ? (
+                <div className="text-red-200 text-sm font-semibold">
+                  {filtered.toLocaleString()} / {total.toLocaleString()}마리
+                </div>
+              ) : (
+                <div className="text-red-200 text-sm font-semibold hidden sm:block">
+                  전체 {total.toLocaleString()}마리
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    // ========================================
+    // 🔍 검색 바
+    // ========================================
+
+    function SearchBar({ allNames, query, onChange, onClear }) {
+      // 자동완성 후보 (로컬 필터)
+      const suggestions = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (q.length < 1) return [];
+        const isNum = /^\d+$/.test(q);
+
+        const koIds = Object.entries(KO_TO_ID)
+          .filter(([k]) => k.includes(q)).map(([,v]) => v);
+        const enIds = allNames
+          .filter(p => isNum
+            ? String(idFromUrl(p.url)).startsWith(q)
+            : p.name.includes(q))
+          .map(p => idFromUrl(p.url));
+
+        return [...new Set([...koIds, ...enIds])].sort((a,b)=>a-b).slice(0, 8).map(id => {
+          const en = allNames.find(p => idFromUrl(p.url) === id);
+          const enName = en ? en.name.charAt(0).toUpperCase() + en.name.slice(1) : `#${id}`;
+          return { id, koName: ID_TO_KO[id] || enName, enName };
+        });
+      }, [query, allNames]);
+
+      const [showDrop, setShowDrop] = useState(false);
+      const dropRef   = useRef(null);
+      const inputRef  = useRef(null);
+
+      useEffect(() => {
+        setShowDrop(query.trim().length > 0 && suggestions.length > 0);
+      }, [query, suggestions]);
+
+      useEffect(() => {
+        const h = e => {
+          if (!dropRef.current?.contains(e.target) && e.target !== inputRef.current)
+            setShowDrop(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+      }, []);
+
+      return (
+        <div className="relative">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">🔍</span>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={e => onChange(e.target.value)}
+                onFocus={() => suggestions.length > 0 && setShowDrop(true)}
+                placeholder="한글·영문 이름 또는 번호  예) 피카추 · char · 25"
+                className="w-full pl-11 pr-10 py-3.5 rounded-2xl border-2 border-gray-200 bg-white text-gray-700 placeholder-gray-400 text-sm outline-none focus:border-red-400 transition-colors"
+                autoComplete="off"
+              />
+              {query && (
+                <button onClick={onClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+              )}
+            </div>
+          </div>
+
+          {/* 드롭다운 */}
+          {showDrop && (
+            <ul ref={dropRef} className="absolute top-[56px] left-0 right-12 bg-white border border-gray-200 rounded-2xl shadow-xl z-40 overflow-hidden">
+              {suggestions.map(s => (
+                <li key={s.id}>
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition-colors text-left"
+                    onMouseDown={e => { e.preventDefault(); onChange(s.koName || s.enName); setShowDrop(false); }}
+                  >
+                    <img src={`${SPRITE_BASE}/${s.id}.png`} alt="" className="w-9 h-9 object-contain" />
+                    <span className="font-bold text-gray-800 text-sm">{s.koName}</span>
+                    <span className="text-gray-400 text-xs">{s.enName}</span>
+                    <span className="ml-auto text-xs text-gray-400 font-mono">#{String(s.id).padStart(3,'0')}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+
+    function App() {
+      const [allNames,   setAllNames]   = useState([]);
+      const [loading,    setLoading]    = useState(true);
+      const [query,      setQuery]      = useState('');
+      const [page,       setPage]       = useState(1);
+      const [selected,   setSelected]   = useState(null);
+      const [loadingId,  setLoadingId]  = useState(null);
+
+      // 전체 이름 목록 1회 로드
+      useEffect(() => {
+        fetch(`${API}/pokemon?limit=2000`)
+          .then(r => r.json())
+          .then(data => setAllNames(data.results))
+          .finally(() => setLoading(false));
+      }, []);
+
+      // 검색어 변경 시 1페이지로 이동
+      useEffect(() => { setPage(1); }, [query]);
+
+      // 검색 필터링 (로컬, 즉시)
+      const filteredIds = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return allNames.map(p => idFromUrl(p.url));
+
+        const isNum = /^\d+$/.test(q);
+        const koIds = new Set(
+          Object.entries(KO_TO_ID).filter(([k]) => k.includes(q)).map(([,v]) => v)
+        );
+        const enIds = allNames
+          .filter(p => isNum
+            ? String(idFromUrl(p.url)).startsWith(q)
+            : p.name.includes(q))
+          .map(p => idFromUrl(p.url));
+
+        return [...new Set([...koIds, ...enIds])].sort((a, b) => a - b);
+      }, [query, allNames]);
+
+      // 현재 페이지 항목
+      const totalPages = Math.ceil(filteredIds.length / ITEMS_PER_PAGE);
+      const pageIds    = filteredIds.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+      // allNames에서 영문 이름 빠르게 가져오기
+      const nameMap = useMemo(() => {
+        const m = {};
+        allNames.forEach(p => { m[idFromUrl(p.url)] = p.name.charAt(0).toUpperCase() + p.name.slice(1); });
+        return m;
+      }, [allNames]);
+
+      // 카드 클릭 → 상세 정보 fetch → 모달
+      async function handleCardClick(id) {
+        setLoadingId(id);
+        try {
+          const p = await fetchPokemon(id);
+          setSelected(p);
+        } catch (e) {
+          alert('정보를 불러오지 못했어요.');
+        } finally {
+          setLoadingId(null);
+        }
+      }
+
+      function handlePageChange(p) {
+        setPage(p);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      return (
+        <div className="min-h-screen bg-gray-100">
+          <Header
+            total={allNames.length}
+            filtered={filteredIds.length}
+            isFiltered={query.trim().length > 0}
+          />
+
+          <main className="max-w-4xl mx-auto px-4 py-5">
+            {/* 검색 바 */}
+            <div className="mb-5">
+              <SearchBar
+                allNames={allNames}
+                query={query}
+                onChange={q => setQuery(q)}
+                onClear={() => setQuery('')}
+              />
+              <p className="text-xs text-gray-400 mt-2 px-1">
+                {query
+                  ? <><span className="font-semibold text-red-500">"{query}"</span> — {filteredIds.length.toLocaleString()}마리 · {page}/{totalPages} 페이지</>
+                  : <>전체 {allNames.length.toLocaleString()}마리 · {page}/{totalPages || '?'} 페이지 · 한글·영문·번호 검색 지원</>
+                }
+              </p>
+            </div>
+
+            {/* 카드 그리드 */}
+            {loading ? (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {Array.from({length: 24}).map((_,i) => (
+                  <div key={i} className="rounded-2xl p-3 bg-white border-2 border-gray-100 flex flex-col items-center gap-2">
+                    <div className="skeleton w-8 h-3 rounded self-end"/>
+                    <div className="skeleton w-16 h-16 rounded-full"/>
+                    <div className="skeleton w-14 h-4 rounded"/>
+                  </div>
+                ))}
+              </div>
+            ) : filteredIds.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+                <div className="text-5xl mb-4">😢</div>
+                <p className="text-lg font-bold">검색 결과가 없어요</p>
+                <p className="text-sm mt-1">다른 이름이나 번호로 검색해보세요</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                  {pageIds.map(id => (
+                    <PokemonCard
+                      key={id}
+                      id={id}
+                      enName={nameMap[id] || `#${id}`}
+                      loadingId={loadingId}
+                      onClick={handleCardClick}
+                    />
+                  ))}
+                </div>
+                <Pagination current={page} total={totalPages} onChange={handlePageChange} />
+                <p className="text-center text-xs text-gray-400 mt-3">
+                  {((page - 1) * ITEMS_PER_PAGE + 1).toLocaleString()} –{' '}
+                  {Math.min(page * ITEMS_PER_PAGE, filteredIds.length).toLocaleString()} /{' '}
+                  {filteredIds.length.toLocaleString()}마리
+                </p>
+              </>
+            )}
+          </main>
+
+          <Modal pokemon={selected} onClose={() => setSelected(null)} />
+        </div>
+      );
+    }
+
+    // ========================================
+    // 렌더링
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+  </script>
+</body>
+</html>
