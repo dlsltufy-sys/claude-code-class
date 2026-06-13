@@ -1,0 +1,12 @@
+{
+  "name": "coin-price-app",
+  "version": "1.0.0",
+  "description": "Realtime coin price web app (CoinGecko) served via Express",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

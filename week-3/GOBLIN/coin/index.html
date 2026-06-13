@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>코인 실시간 시세</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 8px;
+      color: #f0b90b;
+    }
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 40px;
+      font-size: 0.9rem;
+    }
+    .coins {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: transform 0.2s, border-color 0.2s;
+      cursor: pointer;
+    }
+    .card:hover { transform: translateY(-4px); border-color: #f0b90b; }
+    .card.card-up { border-color: #0ecb81; }
+    .card.card-down { border-color: #f6465d; }
+    .card img { width: 48px; height: 48px; }
+    .info { flex: 1; }
+    .coin-name { font-weight: 700; font-size: 1.1rem; }
+    .coin-symbol { color: #888; font-size: 0.8rem; text-transform: uppercase; }
+    .price { font-size: 1.3rem; font-weight: 700; margin-top: 8px; }
+    .price.price-up { color: #0ecb81; }
+    .price.price-down { color: #f6465d; }
+    .change { font-size: 0.85rem; margin-top: 4px; font-weight: 600; }
+    .change.up { color: #0ecb81; }
+    .change.down { color: #f6465d; }
+    .refresh-btn {
+      display: block;
+      margin: 30px auto 0;
+      padding: 12px 32px;
+      background: #f0b90b;
+      color: #000;
+      font-weight: 700;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: opacity 0.2s;
+    }
+    .refresh-btn:hover { opacity: 0.85; }
+    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .updated {
+      text-align: center;
+      color: #555;
+      font-size: 0.8rem;
+      margin-top: 16px;
+    }
+    .skeleton {
+      background: linear-gradient(90deg, #1a1a2e 25%, #2a2a4e 50%, #1a1a2e 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      border-radius: 8px;
+      height: 20px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* 모달 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 20px;
+      padding: 32px;
+      width: 90%;
+      max-width: 700px;
+      position: relative;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .modal-header img { width: 40px; height: 40px; }
+    .modal-title { font-size: 1.4rem; font-weight: 700; }
+    .modal-symbol { color: #888; font-size: 0.85rem; text-transform: uppercase; }
+    .modal-price { font-size: 1.8rem; font-weight: 700; margin: 12px 0 4px; }
+    .modal-change { font-size: 0.9rem; font-weight: 600; margin-bottom: 20px; }
+    .period-btns {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .period-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #2a2a4a;
+      background: transparent;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+    }
+    .period-btn.active, .period-btn:hover {
+      background: #f0b90b;
+      color: #000;
+      border-color: #f0b90b;
+      font-weight: 700;
+    }
+    .chart-wrap { position: relative; height: 260px; }
+    .chart-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      font-size: 0.9rem;
+    }
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.6rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .close-btn:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>실시간 코인 시세</h1>
+  <p class="subtitle">CoinGecko API · 자동 30초마다 갱신 · 카드를 클릭하면 차트를 볼 수 있습니다</p>
+  <div class="coins" id="coins"></div>
+  <button class="refresh-btn" id="refreshBtn" onclick="fetchPrices()">새로고침</button>
+  <p class="updated" id="updated"></p>
+
+  <!-- 모달 -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal">
+      <button class="close-btn" onclick="closeModalDirect()">×</button>
+      <div class="modal-header">
+        <img id="modalImg" src="" alt="" />
+        <div>
+          <div class="modal-title" id="modalName"></div>
+          <div class="modal-symbol" id="modalSymbol"></div>
+        </div>
+      </div>
+      <div class="modal-price" id="modalPrice"></div>
+      <div class="modal-change" id="modalChange"></div>
+      <div class="period-btns">
+        <button class="period-btn active" onclick="changePeriod(this, 1)">1일</button>
+        <button class="period-btn" onclick="changePeriod(this, 7)">7일</button>
+        <button class="period-btn" onclick="changePeriod(this, 30)">30일</button>
+        <button class="period-btn" onclick="changePeriod(this, 365)">1년</button>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-loading" id="chartLoading">로딩 중...</div>
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const COIN_IDS = ['bitcoin', 'ethereum', 'solana', 'ripple', 'dogecoin', 'api3', 'tether', 'usd-coin'];
+    let chartInstance = null;
+    let currentCoinId = null;
+
+    function getTodayKey() {
+      return 'midnightPrices_' + new Date().toISOString().slice(0, 10);
+    }
+
+    function getMidnightPrices() {
+      try { return JSON.parse(localStorage.getItem(getTodayKey())) || {}; } catch { return {}; }
+    }
+
+    async function fetchMidnightPrices() {
+      const key = getTodayKey();
+      if (localStorage.getItem(key)) return;
+
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const from = Math.floor(midnight.getTime() / 1000);
+      const to = from + 3600;
+
+      const prices = {};
+      for (const id of COIN_IDS) {
+        try {
+          const res = await fetch(
+            `https://api.coingecko.com/api/v3/coins/${id}/market_chart/range?vs_currency=usd&from=${from}&to=${to}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.prices && data.prices.length > 0) {
+              prices[id] = data.prices[0][1];
+            }
+          }
+          await new Promise(r => setTimeout(r, 300));
+        } catch (e) {}
+      }
+
+      if (Object.keys(prices).length > 0) {
+        localStorage.setItem(key, JSON.stringify(prices));
+        Object.keys(localStorage).forEach(k => { if (k.startsWith('midnightPrices_') && k !== key) localStorage.removeItem(k); });
+      }
+    }
+
+
+    function formatPrice(price) {
+      if (price >= 1000) return '$' + price.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      if (price >= 1) return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+      return '$' + price.toFixed(6);
+    }
+
+    function renderSkeletons() {
+      const container = document.getElementById('coins');
+      container.innerHTML = COIN_IDS.map(() => `
+        <div class="card">
+          <div class="skeleton" style="width:48px;height:48px;border-radius:50%;flex-shrink:0"></div>
+          <div class="info">
+            <div class="skeleton" style="width:80px;margin-bottom:6px"></div>
+            <div class="skeleton" style="width:50px;height:14px;margin-bottom:8px"></div>
+            <div class="skeleton" style="width:100px;height:22px;margin-bottom:4px"></div>
+            <div class="skeleton" style="width:70px;height:14px"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function fetchPrices() {
+      const btn = document.getElementById('refreshBtn');
+      btn.disabled = true;
+      btn.textContent = '로딩 중...';
+      try {
+        const ids = COIN_IDS.join(',');
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false`
+        );
+        if (!res.ok) throw new Error('API 오류');
+        const data = await res.json();
+        renderCards(data);
+        document.getElementById('updated').textContent = '마지막 업데이트: ' + new Date().toLocaleTimeString('ko-KR');
+      } catch (e) {
+        document.getElementById('coins').innerHTML = `<p style="text-align:center;color:#f6465d;grid-column:1/-1">데이터를 불러오지 못했습니다.<br>${e.message}</p>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '새로고침';
+      }
+    }
+
+    function renderCards(coins) {
+      const midnight = getMidnightPrices();
+      const container = document.getElementById('coins');
+      container.innerHTML = coins.map(coin => {
+        const change = coin.price_change_percentage_24h;
+        const isUp = change >= 0;
+        const base = midnight[coin.id];
+        let priceClass = 'price';
+        let cardClass = 'card';
+        if (base !== undefined) {
+          if (coin.current_price > base) { priceClass += ' price-up'; cardClass += ' card-up'; }
+          else if (coin.current_price < base) { priceClass += ' price-down'; cardClass += ' card-down'; }
+        }
+        return `
+          <div class="${cardClass}" onclick="openModal(${JSON.stringify(coin).replace(/"/g, '&quot;')})">
+            <img src="${coin.image}" alt="${coin.name}" />
+            <div class="info">
+              <div class="coin-name">${coin.name}</div>
+              <div class="coin-symbol">${coin.symbol}</div>
+              <div class="${priceClass}">${formatPrice(coin.current_price)}</div>
+              <div class="change ${isUp ? 'up' : 'down'}">
+                ${isUp ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}% (24h)
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openModal(coin) {
+      currentCoinId = coin.id;
+      const change = coin.price_change_percentage_24h;
+      const isUp = change >= 0;
+
+      document.getElementById('modalImg').src = coin.image;
+      document.getElementById('modalImg').alt = coin.name;
+      document.getElementById('modalName').textContent = coin.name;
+      document.getElementById('modalSymbol').textContent = coin.symbol.toUpperCase();
+      document.getElementById('modalPrice').textContent = formatPrice(coin.current_price);
+
+      const changeEl = document.getElementById('modalChange');
+      changeEl.textContent = `${isUp ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}% (24h)`;
+      changeEl.className = 'modal-change ' + (isUp ? 'up' : 'down');
+
+      document.querySelectorAll('.period-btn').forEach((b, i) => {
+        b.classList.toggle('active', i === 0);
+      });
+
+      document.getElementById('modalOverlay').classList.add('open');
+      loadChart(coin.id, 1);
+    }
+
+    function closeModal(e) {
+      if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+    }
+
+    function closeModalDirect() {
+      document.getElementById('modalOverlay').classList.remove('open');
+      if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    }
+
+    function changePeriod(btn, days) {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadChart(currentCoinId, days);
+    }
+
+    async function loadChart(coinId, days) {
+      const loading = document.getElementById('chartLoading');
+      const canvas = document.getElementById('priceChart');
+      loading.style.display = 'flex';
+      canvas.style.display = 'none';
+      if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+      try {
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`
+        );
+        if (!res.ok) throw new Error('차트 데이터 오류');
+        const data = await res.json();
+
+        const prices = data.prices;
+        const labels = prices.map(p => {
+          const d = new Date(p[0]);
+          if (days <= 1) return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+          return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+        });
+        const values = prices.map(p => p[1]);
+
+        const isUp = values[values.length - 1] >= values[0];
+        const color = isUp ? '#0ecb81' : '#f6465d';
+
+        loading.style.display = 'none';
+        canvas.style.display = 'block';
+
+        chartInstance = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              data: values,
+              borderColor: color,
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: true,
+              backgroundColor: (ctx) => {
+                const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 260);
+                gradient.addColorStop(0, color + '33');
+                gradient.addColorStop(1, color + '00');
+                return gradient;
+              },
+              tension: 0.3,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: ctx => formatPrice(ctx.parsed.y)
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#555',
+                  maxTicksLimit: 6,
+                  maxRotation: 0,
+                },
+                grid: { color: '#1e1e3a' }
+              },
+              y: {
+                ticks: { color: '#555', callback: v => formatPrice(v) },
+                grid: { color: '#1e1e3a' }
+              }
+            }
+          }
+        });
+      } catch (e) {
+        loading.textContent = '차트를 불러오지 못했습니다.';
+        loading.style.display = 'flex';
+      }
+    }
+
+    renderSkeletons();
+    fetchMidnightPrices().then(() => fetchPrices());
+    setInterval(fetchPrices, 30000);
+  </script>
+</body>
+</html>
