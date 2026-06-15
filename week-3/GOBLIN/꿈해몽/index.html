@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>꿈의 예언자 🔮</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      * { font-family: 'Noto Serif KR', serif; }
+
+      body {
+        background: radial-gradient(ellipse at 50% 0%, #1a0533 0%, #0a0015 50%, #000005 100%);
+        min-height: 100vh;
+      }
+
+      /* 별 */
+      @keyframes twinkle {
+        0%, 100% { opacity: 0.1; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.4); }
+      }
+      .star {
+        position: fixed;
+        background: #fff;
+        border-radius: 9999px;
+        animation: twinkle ease-in-out infinite;
+      }
+
+      /* 유성 */
+      @keyframes shooting {
+        0% { transform: translateX(0) translateY(0) rotate(-45deg); opacity: 1; }
+        100% { transform: translateX(300px) translateY(300px) rotate(-45deg); opacity: 0; }
+      }
+      .shooting-star {
+        position: fixed;
+        width: 80px;
+        height: 1px;
+        background: linear-gradient(to right, transparent, #fff);
+        animation: shooting 2.5s linear infinite;
+      }
+
+      /* 안개 */
+      @keyframes fog {
+        0%, 100% { opacity: 0.04; transform: translateX(-20px) scaleX(1); }
+        50% { opacity: 0.10; transform: translateX(20px) scaleX(1.05); }
+      }
+      .fog {
+        position: fixed;
+        width: 100%;
+        height: 300px;
+        background: radial-gradient(ellipse at 50% 50%, #7c3aed 0%, transparent 70%);
+        animation: fog 12s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      /* 수정구슬 */
+      @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 0 30px #7c3aed, 0 0 60px #4c1d95, 0 0 100px #2e1065; }
+        50% { box-shadow: 0 0 50px #a855f7, 0 0 100px #7c3aed, 0 0 150px #4c1d95; }
+      }
+      .crystal-ball {
+        animation: pulse-glow 4s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-12px); }
+      }
+      .float { animation: float 5s ease-in-out infinite; }
+
+      /* 로딩 룬 */
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes spin-reverse { to { transform: rotate(-360deg); } }
+      .rune-outer {
+        width: 60px; height: 60px;
+        border: 2px solid transparent;
+        border-top-color: #a855f7;
+        border-right-color: #6366f1;
+        border-radius: 9999px;
+        animation: spin 1.2s linear infinite;
+      }
+      .rune-inner {
+        position: absolute;
+        top: 8px; left: 8px;
+        width: 44px; height: 44px;
+        border: 2px solid transparent;
+        border-bottom-color: #ec4899;
+        border-left-color: #8b5cf6;
+        border-radius: 9999px;
+        animation: spin-reverse 0.8s linear infinite;
+      }
+
+      /* 결과 카드 */
+      .result-card {
+        background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(99,102,241,0.08));
+        border: 1px solid rgba(167,139,250,0.3);
+        box-shadow: 0 0 40px rgba(124,58,237,0.2), inset 0 0 40px rgba(0,0,0,0.3);
+      }
+      .advice-card {
+        background: linear-gradient(135deg, rgba(180,130,20,0.15), rgba(234,179,8,0.06));
+        border: 1px solid rgba(251,191,36,0.3);
+        box-shadow: 0 0 30px rgba(180,130,20,0.15), inset 0 0 30px rgba(0,0,0,0.3);
+      }
+
+      .result-text { white-space: pre-wrap; word-break: break-word; line-height: 2; }
+
+      /* 입력창 */
+      textarea {
+        background: rgba(10, 0, 30, 0.7) !important;
+        border: 1px solid rgba(139,92,246,0.3) !important;
+        transition: border-color 0.3s, box-shadow 0.3s;
+      }
+      textarea:focus {
+        border-color: rgba(167,139,250,0.7) !important;
+        box-shadow: 0 0 20px rgba(124,58,237,0.3) !important;
+        outline: none !important;
+      }
+
+      /* 버튼 */
+      .magic-btn {
+        background: linear-gradient(135deg, #4c1d95, #6d28d9, #4c1d95);
+        background-size: 200% auto;
+        border: 1px solid rgba(167,139,250,0.5);
+        box-shadow: 0 0 20px rgba(124,58,237,0.4);
+        transition: all 0.4s;
+      }
+      .magic-btn:hover:not(:disabled) {
+        background-position: right center;
+        box-shadow: 0 0 40px rgba(124,58,237,0.7);
+        transform: translateY(-1px);
+      }
+      .magic-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      /* 제목 글로우 */
+      .title-glow {
+        text-shadow: 0 0 20px rgba(167,139,250,0.8), 0 0 40px rgba(124,58,237,0.4);
+      }
+    </style>
+  </head>
+  <body class="text-slate-100 relative overflow-x-hidden">
+
+    <!-- 안개 레이어 -->
+    <div class="fog" style="top: 60%; animation-delay: 0s;"></div>
+    <div class="fog" style="top: 20%; animation-delay: 6s;"></div>
+
+    <!-- 별 / 유성 -->
+    <div id="stars" class="fixed inset-0 pointer-events-none z-0"></div>
+
+    <main class="relative z-10 max-w-2xl mx-auto px-5 py-14">
+
+      <!-- 헤더 -->
+      <header class="text-center mb-12">
+        <div class="float inline-block mb-4">
+          <div class="crystal-ball text-7xl w-24 h-24 flex items-center justify-center mx-auto rounded-full bg-purple-950/40">
+            🔮
+          </div>
+        </div>
+        <h1 class="title-glow text-4xl font-bold text-purple-200 tracking-widest mt-4">
+          꿈의 예언자
+        </h1>
+        <p class="mt-3 text-purple-300/60 text-sm tracking-wider">
+          ✦ 별빛이 속삭이는 꿈의 비밀 ✦
+        </p>
+      </header>
+
+      <!-- 입력 섹션 -->
+      <section class="result-card rounded-2xl p-7 mb-6">
+        <label for="dream-input" class="block mb-3 text-sm text-purple-300/80 tracking-widest">
+          ✧ 간밤의 꿈을 고하라 ✧
+        </label>
+        <textarea
+          id="dream-input"
+          rows="6"
+          placeholder="별빛 아래 꾼 꿈을 이곳에 새겨주소서..."
+          class="w-full rounded-xl p-4 text-slate-200 placeholder-purple-700/60 resize-none"
+        ></textarea>
+
+        <button id="interpret-btn" class="magic-btn mt-5 w-full py-3.5 rounded-xl font-bold text-purple-100 tracking-widest">
+          ✦ 꿈을 풀어라 ✦
+        </button>
+
+        <p id="error-msg" class="mt-3 text-sm text-rose-400/80 hidden text-center"></p>
+      </section>
+
+      <!-- 로딩 -->
+      <div id="loading" class="hidden mt-10 flex flex-col items-center gap-4">
+        <div class="relative rune-outer">
+          <div class="rune-inner"></div>
+          <div class="absolute inset-0 flex items-center justify-center text-lg">🌙</div>
+        </div>
+        <p class="text-purple-300/70 text-sm tracking-widest animate-pulse">
+          ∙∙∙ 운명의 실을 읽는 중 ∙∙∙
+        </p>
+      </div>
+
+      <!-- 해몽 결과 -->
+      <section id="result-box" class="hidden mt-8 result-card rounded-2xl p-7">
+        <h2 class="text-base font-bold text-purple-300 mb-4 tracking-widest text-center">
+          ✦ 별이 전하는 말 ✦
+        </h2>
+        <div id="result-text" class="result-text text-slate-200/90 text-sm leading-loose"></div>
+      </section>
+
+      <!-- 오늘 하루 조언 -->
+      <section id="advice-box" class="hidden mt-5 advice-card rounded-2xl p-6">
+        <h2 class="text-base font-bold text-yellow-300/90 mb-3 tracking-widest text-center">
+          ☽ 오늘 하루의 계시 ☾
+        </h2>
+        <p id="advice-text" class="text-yellow-100/80 text-sm leading-loose text-center tracking-wide"></p>
+      </section>
+
+      <footer class="text-center mt-14 text-xs text-purple-900/60 tracking-widest">
+        ✦ 꿈은 영혼이 보내는 비밀 편지입니다 ✦
+      </footer>
+    </main>
+
+    <script src="client.js"></script>
+  </body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>손글씨 그림판</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Nanum Pen Script', system-ui, sans-serif; }
+    /* 캔버스 영역 점선 그림자 느낌 */
+    .canvas-shadow { box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ========================================
+    // React Hooks Destructuring
+    // ========================================
+    const { useState, useRef, useEffect, useCallback } = React;
+
+    const CANVAS_W = 1000;
+    const CANVAS_H = 650;
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Button({ variant = "primary", size = "md", disabled, onClick, className = "", children, ...rest }) {
+      const variants = {
+        primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
+        secondary: "bg-gray-200 hover:bg-gray-300 text-gray-800",
+        danger: "bg-rose-500 hover:bg-rose-600 text-white",
+        ghost: "bg-transparent hover:bg-gray-100 text-gray-700 border border-gray-300",
+      };
+      const sizes = {
+        sm: "px-3 py-1.5 text-sm",
+        md: "px-4 py-2 text-base",
+        lg: "px-5 py-2.5 text-lg",
+      };
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`rounded-lg font-sans font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}
+          {...rest}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Card({ className = "", children }) {
+      return (
+        <div className={`bg-white rounded-2xl shadow-sm border border-gray-200 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Label({ children, className = "" }) {
+      return (
+        <label className={`block text-sm font-sans font-medium text-gray-600 mb-1.5 ${className}`}>
+          {children}
+        </label>
+      );
+    }
+
+    function Slider({ value, min, max, onChange, className = "" }) {
+      return (
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className={`w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 accent-indigo-600 ${className}`}
+        />
+      );
+    }
+
+    // ========================================
+    // 🧩 Toolbar / Controls
+    // ========================================
+
+    const STROKE_OPTIONS = [
+      { value: "light", label: "가늘게" },
+      { value: "normal", label: "보통" },
+      { value: "bold", label: "굵게" },
+    ];
+
+    function Toolbar({
+      text, setText,
+      fontSize, setFontSize,
+      color, setColor,
+      stroke, setStroke,
+      onAdd, onClear, onSave,
+    }) {
+      return (
+        <Card className="p-5 font-sans">
+          {/* 텍스트 입력 */}
+          <div className="mb-4">
+            <Label>한글 텍스트 입력</Label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }}
+                placeholder="여기에 한글을 입력하세요..."
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg"
+                style={{ fontFamily: "'Nanum Pen Script', sans-serif" }}
+              />
+              <Button onClick={onAdd} size="md" disabled={!text.trim()}>
+                캔버스에 추가
+              </Button>
+            </div>
+          </div>
+
+          {/* 브러시 설정 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* 글자 크기 */}
+            <div>
+              <Label>글자 크기 ({fontSize}px)</Label>
+              <Slider value={fontSize} min={20} max={120} onChange={setFontSize} />
+            </div>
+
+            {/* 잉크 색상 */}
+            <div>
+              <Label>잉크 색상</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="h-10 w-14 rounded-lg border border-gray-300 cursor-pointer bg-white p-0.5"
+                  aria-label="잉크 색상 선택"
+                />
+                <span className="text-sm text-gray-500 font-mono">{color}</span>
+              </div>
+            </div>
+
+            {/* 획 스타일 */}
+            <div>
+              <Label>획 스타일</Label>
+              <div className="flex gap-2">
+                {STROKE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setStroke(opt.value)}
+                    className={`flex-1 px-2 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                      stroke === opt.value
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 액션 버튼 */}
+          <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-gray-100">
+            <Button variant="ghost" onClick={onClear}>전체 지우기</Button>
+            <Button variant="secondary" onClick={onSave}>PNG 저장</Button>
+          </div>
+        </Card>
+      );
+    }
+
+    // ========================================
+    // 🖌️ Canvas Rendering Logic
+    // ========================================
+
+    // 획 스타일 -> 그리는 레이어(중첩) 설정
+    function getStrokeConfig(stroke) {
+      switch (stroke) {
+        case "light":
+          return { layers: 2, maxOffset: 0.8, baseAlpha: 0.55, alphaStep: 0.15 };
+        case "bold":
+          return { layers: 4, maxOffset: 1.6, baseAlpha: 0.8, alphaStep: 0.1 };
+        case "normal":
+        default:
+          return { layers: 3, maxOffset: 1.2, baseAlpha: 0.7, alphaStep: 0.12 };
+      }
+    }
+
+    // 한 개의 텍스트 블록을 캔버스에 손글씨 느낌으로 렌더링
+    function drawTextBlock(ctx, block) {
+      const { text, fontSize, color, stroke, x, y, rotation } = block;
+      const cfg = getStrokeConfig(stroke);
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation); // 살짝 회전
+      ctx.font = `${fontSize}px 'Nanum Pen Script', sans-serif`;
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = color;
+
+      // 글자 단위로 위치를 계산하며 그린다 (자연스러운 자간 흔들림 포함)
+      const chars = Array.from(text);
+      let cursorX = 0;
+
+      for (const ch of chars) {
+        const w = ctx.measureText(ch).width;
+
+        // 글자마다 약간의 수직 흔들림
+        const charJitterY = (Math.random() - 0.5) * (fontSize * 0.04);
+
+        // 펜 압력 변화를 흉내내기 위해 여러 겹으로 중첩 렌더링
+        for (let i = 0; i < cfg.layers; i++) {
+          const ox = (Math.random() - 0.5) * cfg.maxOffset * 2;
+          const oy = (Math.random() - 0.5) * cfg.maxOffset * 2;
+          ctx.globalAlpha = Math.max(0.2, cfg.baseAlpha - i * cfg.alphaStep);
+          ctx.fillText(ch, cursorX + ox, charJitterY + oy);
+        }
+
+        // 다음 글자 위치 (자간을 미세하게 흔든다)
+        cursorX += w + (Math.random() - 0.5) * (fontSize * 0.03);
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // 캔버스 배경 채우기
+    function fillBackground(ctx) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    // ========================================
+    // 📄 Page Component — 손글씨 그림판
+    // ========================================
+
+    function HandwritingPaint() {
+      const canvasRef = useRef(null);
+      const [fontReady, setFontReady] = useState(false);
+
+      const [text, setText] = useState("");
+      const [fontSize, setFontSize] = useState(64);
+      const [color, setColor] = useState("#1a1a2e");
+      const [stroke, setStroke] = useState("normal");
+
+      // 캔버스에 쌓인 텍스트 블록들
+      const [blocks, setBlocks] = useState([]);
+
+      // 드래그 상태 (캔버스에 추가된 블록 위치를 옮길 수 있음)
+      const dragRef = useRef({ active: false, index: -1, offsetX: 0, offsetY: 0 });
+
+      // 폰트 로드 대기 (FontFaceSet API)
+      useEffect(() => {
+        let mounted = true;
+        if (document.fonts && document.fonts.load) {
+          document.fonts.load("64px 'Nanum Pen Script'").then(() => {
+            return document.fonts.ready;
+          }).then(() => {
+            if (mounted) setFontReady(true);
+          }).catch(() => {
+            if (mounted) setFontReady(true);
+          });
+        } else {
+          // 폴백: 약간 대기 후 준비 완료 처리
+          const t = setTimeout(() => mounted && setFontReady(true), 600);
+          return () => clearTimeout(t);
+        }
+        return () => { mounted = false; };
+      }, []);
+
+      // 블록 전체를 다시 그림 (배경 -> 각 블록)
+      const redraw = useCallback(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        fillBackground(ctx);
+        for (const b of blocks) {
+          drawTextBlock(ctx, b);
+        }
+      }, [blocks]);
+
+      // 블록 변경 / 폰트 준비 시 다시 그림
+      useEffect(() => {
+        redraw();
+      }, [redraw, fontReady]);
+
+      // 캔버스 좌표 변환 (실제 픽셀 기준)
+      const getCanvasPos = (e) => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = CANVAS_W / rect.width;
+        const scaleY = CANVAS_H / rect.height;
+        return {
+          x: (e.clientX - rect.left) * scaleX,
+          y: (e.clientY - rect.top) * scaleY,
+        };
+      };
+
+      // 텍스트 추가 (중앙 + 약간의 랜덤 위치 / 회전)
+      const handleAdd = () => {
+        if (!text.trim()) return;
+
+        // 텍스트 폭 측정으로 중앙 정렬을 위한 x 보정
+        const ctx = canvasRef.current.getContext("2d");
+        ctx.font = `${fontSize}px 'Nanum Pen Script', sans-serif`;
+        const w = ctx.measureText(text).width;
+
+        // 약간의 랜덤 오프셋으로 겹쳐도 자연스럽게
+        const jitter = () => (Math.random() - 0.5) * 60;
+        const centerX = CANVAS_W / 2 - w / 2 + jitter();
+        const centerY = CANVAS_H / 2 + jitter();
+
+        // -2° ~ +2° 랜덤 회전 (라디안)
+        const rotation = ((Math.random() * 4 - 2) * Math.PI) / 180;
+
+        const newBlock = {
+          id: Date.now() + Math.random(),
+          text: text.trim(),
+          fontSize,
+          color,
+          stroke,
+          x: Math.max(20, Math.min(centerX, CANVAS_W - 20)),
+          y: Math.max(fontSize, Math.min(centerY, CANVAS_H - 20)),
+          rotation,
+          width: w,
+        };
+
+        setBlocks((prev) => [...prev, newBlock]);
+        setText("");
+      };
+
+      const handleClear = () => {
+        setBlocks([]);
+      };
+
+      const handleSave = () => {
+        const canvas = canvasRef.current;
+        const link = document.createElement("a");
+        link.download = `손글씨_${Date.now()}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      };
+
+      // 블록 히트 테스트 (대략적인 박스 기준, 회전은 무시한 근사)
+      const hitTest = (pos) => {
+        // 위에 그려진(나중에 추가된) 블록 우선
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          const b = blocks[i];
+          const left = b.x;
+          const right = b.x + (b.width || b.fontSize * b.text.length * 0.5);
+          const top = b.y - b.fontSize;
+          const bottom = b.y + b.fontSize * 0.3;
+          if (pos.x >= left - 10 && pos.x <= right + 10 && pos.y >= top && pos.y <= bottom) {
+            return i;
+          }
+        }
+        return -1;
+      };
+
+      const handleMouseDown = (e) => {
+        const pos = getCanvasPos(e);
+        const idx = hitTest(pos);
+        if (idx >= 0) {
+          const b = blocks[idx];
+          dragRef.current = {
+            active: true,
+            index: idx,
+            offsetX: pos.x - b.x,
+            offsetY: pos.y - b.y,
+          };
+        }
+      };
+
+      const handleMouseMove = (e) => {
+        if (!dragRef.current.active) return;
+        const pos = getCanvasPos(e);
+        const { index, offsetX, offsetY } = dragRef.current;
+        setBlocks((prev) =>
+          prev.map((b, i) =>
+            i === index ? { ...b, x: pos.x - offsetX, y: pos.y - offsetY } : b
+          )
+        );
+      };
+
+      const handleMouseUp = () => {
+        dragRef.current = { active: false, index: -1, offsetX: 0, offsetY: 0 };
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col items-center py-8 px-4">
+          {/* 헤더 */}
+          <div className="w-full max-w-5xl mb-6 text-center">
+            <h1 className="text-5xl text-gray-800 mb-1">손글씨 그림판</h1>
+            <p className="text-gray-500 font-sans text-sm">
+              한글을 입력하면 직접 손으로 쓴 듯한 글씨로 캔버스에 그려집니다.
+              {!fontReady && <span className="text-indigo-500"> (폰트 불러오는 중...)</span>}
+            </p>
+          </div>
+
+          {/* 툴바 */}
+          <div className="w-full max-w-5xl mb-5">
+            <Toolbar
+              text={text} setText={setText}
+              fontSize={fontSize} setFontSize={setFontSize}
+              color={color} setColor={setColor}
+              stroke={stroke} setStroke={setStroke}
+              onAdd={handleAdd}
+              onClear={handleClear}
+              onSave={handleSave}
+            />
+          </div>
+
+          {/* 캔버스 영역 */}
+          <div className="w-full max-w-5xl">
+            <div className="bg-white rounded-2xl p-3 canvas-shadow">
+              <canvas
+                ref={canvasRef}
+                width={CANVAS_W}
+                height={CANVAS_H}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                className="w-full h-auto rounded-lg border border-gray-200 cursor-crosshair bg-white"
+                style={{ touchAction: "none" }}
+              />
+            </div>
+            <p className="text-center text-gray-400 font-sans text-xs mt-3">
+              팁: 캔버스에 추가된 글씨를 마우스로 드래그하여 위치를 옮길 수 있어요.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+
+    function App() {
+      return <HandwritingPaint />;
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
